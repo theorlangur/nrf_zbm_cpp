@@ -3,8 +3,8 @@
 
 #include <cstddef>
 #include <optional>
-#include "zbm_tools_misc_helpers.hpp"
-#include "zbm_tools_type_traits.hpp"
+#include "zbm_misc_helpers.hpp"
+#include "zbm_type_traits.hpp"
 
 namespace zbm
 {

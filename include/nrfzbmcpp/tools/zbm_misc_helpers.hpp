@@ -2,7 +2,7 @@
 #define ZB_META_MISC_HELPERS_HPP_
 
 #include <chrono>
-#include "zbm_tools_formatter.hpp"
+#include "zbm_formatter.hpp"
 
 namespace zbm
 {
