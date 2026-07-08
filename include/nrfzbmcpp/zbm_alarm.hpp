@@ -11,12 +11,10 @@ extern "C" {
 #include <zboss_api.h>
 }
 
-#ifndef ALARM_LIST_LOCK_TYPE
-#define ALARM_LIST_LOCK_TYPE thread::spin_lock_t
-#endif
 
 namespace zbm
 {
+    using ALARM_LIST_LOCK_TYPE=thread::spin_lock_t;
     struct alarm_t
     {
         static constexpr uint8_t kCounterOfDeathInactive = 0xff;
@@ -49,7 +47,7 @@ namespace zbm
 
             std::optional<handle_entry_t> Allocate()
             {
-                thread::LockGuard l(&g_AlarmLock);
+                thread::lock_guard_t l(&g_AlarmLock);
                 if (head != kFull)
                 {
                     auto r = head;
@@ -61,7 +59,7 @@ namespace zbm
 
             void Free(handle_t h)
             {
-                thread::LockGuard l(&g_AlarmLock);
+                thread::lock_guard_t l(&g_AlarmLock);
                 entries[h].nextFree = head;
                 head = h;
             }
@@ -186,7 +184,7 @@ namespace zbm
                     sys_reboot(SYS_REBOOT_WARM);
                     return;
                 }
-                FMT_PRINT("Low on handles: tick-tock: {} iterations left\n", zb_alarm_t::g_CounterOfDeath);
+                FMT_PRINT("Low on handles: tick-tock: {} iterations left\n", alarm_t::g_CounterOfDeath);
             }
         }
     };
@@ -240,7 +238,7 @@ namespace zbm
         zb_ret_t Setup(callback_t &&cb, uint32_t time)
         {
             m_Callback = std::forward<callback_t>(cb);
-            return zb_timer_t::Setup(on_timer_ext, &m_Callback, time);
+            return timer_t::Setup(on_timer_ext, &m_Callback, time);
         }
     };
     using timer_ext_16_t = timer_ext_t<16>;

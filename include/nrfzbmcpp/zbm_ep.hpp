@@ -216,7 +216,7 @@ namespace zbm
                 uint32_t timeout_ms;
             };
             inline static zbm::tools::ring_buffer_t<cmd_request_t, kCmdQueueSize> g_cmd_queue;
-            inline static zbm::zb_alarm_ext_16_t g_cmd_timeout_tracker;
+            inline static zbm::alarm_ext_16_t g_cmd_timeout_tracker;
             inline static cmd_id_t g_cmd_num = 0;
 
             /**********************************************************************/
