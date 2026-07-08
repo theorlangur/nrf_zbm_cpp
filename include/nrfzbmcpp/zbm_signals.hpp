@@ -107,6 +107,7 @@ namespace zbm
                 static_assert(std::meta::remove_cvref(params[0]) == std::meta::dealias(^^zb_ret_t), "1st parameter must be zb_ret_t");
                 if constexpr (params.size() == 2)
                 {
+                    //2. arg case
                     static_assert(std::meta::remove_const(params[1]) == std::meta::add_pointer(signal_param_type_relf->param_type_ref), "2nd parameter must be signal specific type pointer");
                     auto *pTyped = reinterpret_cast<typename [:signal_param_type_relf->param_type_ref:]*>((uint8_t*)pHdr + sizeof(zb_zdo_app_signal_hdr_t));
                     if constexpr (optional_default_handlling)
