@@ -53,9 +53,8 @@ namespace zbm
         {
             for(auto m : std::meta::members_of(callable_refl, std::meta::access_context::current()))
             {
-                auto t = std::meta::type_of(m);
-                if (std::meta::is_function_type(t) && std::meta::identifier_of(m) == "operator()")
-                    return t;
+                if (std::meta::is_operator_function(m) && std::meta::operator_of(m) == std::meta::operators::op_parentheses)
+                    return std::meta::type_of(m);
             }
             return std::nullopt;
         }
@@ -105,7 +104,7 @@ namespace zbm
 
             if constexpr (params.size() >= 1)
             {
-                static_assert(params[0] == std::meta::dealias(^^zb_ret_t), "1st parameter must be zb_ret_t");
+                static_assert(std::meta::remove_cvref(params[0]) == std::meta::dealias(^^zb_ret_t), "1st parameter must be zb_ret_t");
                 if constexpr (params.size() == 2)
                 {
                     static_assert(std::meta::remove_const(params[1]) == std::meta::add_pointer(signal_param_type_relf->param_type_ref), "2nd parameter must be signal specific type pointer");

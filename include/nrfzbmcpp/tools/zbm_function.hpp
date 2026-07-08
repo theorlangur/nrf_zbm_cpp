@@ -128,9 +128,9 @@ namespace zbm{
             }
 
             public:
-            fixed_function_t() = default;
+            constexpr fixed_function_t() = default;
 
-            fixed_function_t(R(*pF)(Args...)):
+            constexpr fixed_function_t(R(*pF)(Args...)):
                 m_pTable(&function::v_PlainFunc<R,Args...>)
                 ,m_pInvoker(&function::InvokeFunction<R, Args...>)
             {
@@ -139,7 +139,7 @@ namespace zbm{
             }
 
             template<class F>
-            fixed_function_t(F &&f):
+            constexpr fixed_function_t(F &&f):
                 m_pTable(GetVTableFor<F>())
                 ,m_pInvoker(&function::InvokeFunctor<F, R, Args...>)
             {
@@ -166,14 +166,13 @@ namespace zbm{
 
             operator bool() const { return m_pTable != nullptr; }
 
-            template<class...A>
-            R operator()(A&&... args)
+            R operator()(Args... args)
             {
                 return m_pInvoker(std::forward<Args>(args)..., m_Storage);
             }
 
         private:
-            alignas(16) std::byte m_Storage[Sz];
+            alignas(16) std::byte m_Storage[Sz]{};
             const v_table_type *m_pTable = nullptr;
             invoke_t m_pInvoker = nullptr;
         };
