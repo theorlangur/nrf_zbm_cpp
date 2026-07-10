@@ -27,21 +27,43 @@ namespace zbm
         std::meta::info handler;
     };
 
-    struct cb_generic_handler_t
+    struct cb_generic_filter_t
     {
         static constexpr uint8_t kEP_ANY = 0xff;
         static constexpr uint16_t kCLUSTER_ANY = 0xffff;
         static constexpr uint16_t kATTRIBUTE_ANY = 0xffff;
-        using cb_t = void(*)(zb_zcl_device_callback_param_t*);
 
         uint8_t ep = kEP_ANY;
         uint16_t cluster = kCLUSTER_ANY;
         uint16_t attribute = kATTRIBUTE_ANY;
+    };
+
+    struct cb_generic_handler_t
+    {
+        using cb_t = void(*)(zb_zcl_device_callback_param_t*);
         cb_t handler = nullptr;
     };
 
     namespace details
     {
+        consteval cb_generic_filter_t infer_filter(std::meta::info ep, std::meta::info target)
+        {
+            cb_generic_filter_t res;
+            if (auto r = try_get_ep_annotation(ep))
+                res.ep = (*r).ep;
+            if (auto r = try_get_attribute_annotation(target))
+            {
+                res.attribute = (*r).id;
+                auto cluster_r = get_cluster_annotation(target);
+                if (cluster_r)
+                    res.cluster = (*cluster_r).id;
+            }else if (auto r = get_cluster_annotation(target))
+            {
+                res.cluster = (*r).id;
+            }
+            return res;
+        }
+            
         struct cb_id_range
         {
             unsigned min;
@@ -85,9 +107,53 @@ namespace zbm
             return ar;
         }
 
-        template<auto handlers>
+        consteval std::optional<std::meta::info> cb_id_to_param_type(unsigned cb_id)
+        {
+            struct info_t
+            {
+                unsigned id;
+                std::meta::info type_refl;
+            };
+            std::array info {
+                info_t{.id = ZB_ZCL_SET_ATTR_VALUE_CB_ID, .type_refl = ^^zb_zcl_set_attr_value_param_t},
+            };
+
+            for(auto const& i : info)
+                if (i.id == cb_id)
+                    return i.type_refl;
+            return std::nullopt;
+        }
+
+        consteval std::optional<std::meta::info> find_cb_param(std::meta::info param_type)
+        {
+            for(auto m : std::meta::members_of(^^zb_zcl_device_callback_param_t::cb_param, std::meta::access_context::current()))
+            {
+                if (std::meta::type_of(m) == param_type)
+                    return m;
+            }
+            return std::nullopt;
+        }
+
+        enum class handler_type_e
+        {
+            NoArgs,
+            DevCallback,
+            DevCallbackAndTypedParam,
+            More,
+        };
+
+        consteval handler_type_e infer_handler_type(std::meta::info h)
+        {
+            return {};
+        }
+
+        template<unsigned cb_id, auto handlers>
         void generic_cb_handler(zb_zcl_device_callback_param_t*)
         {
+            constexpr auto info = cb_id_to_param_type(cb_id);
+            template for (constexpr auto h : handlers)
+            {
+            }
         }
 
         template<cb_id_range range, auto handlers>
@@ -99,8 +165,8 @@ namespace zbm
             template for(constexpr auto I : std::ranges::views::iota(unsigned(0), range.max - range.min + 1))
             {
                 static constexpr auto filtered_handlers = std::define_static_array(filter_handlers_by_cb_id(I + range.min, std::span{handlers.begin(), handlers.end()}));
-                static constexpr auto _f_a = span_to_array<filtered_handlers.size()>(filtered_handlers);
-                mid_storage[I] = &generic_cb_handler<_f_a>;
+                static constexpr auto filtered_handlers_array = span_to_array<filtered_handlers.size()>(filtered_handlers);
+                mid_storage[I] = &generic_cb_handler<unsigned(I + range.min), filtered_handlers_array>;
             }
 
             return mid_storage;

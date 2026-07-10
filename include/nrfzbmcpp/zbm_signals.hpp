@@ -48,39 +48,6 @@ namespace zbm
             ,signal_to_param_t{ZB_ZDO_DEVICE_UNAVAILABLE,               ^^zb_zdo_device_unavailable_params_t}
         };
 
-        template<std::meta::info callable_refl>
-        consteval std::optional<std::meta::info> get_call_operator_overload()
-        {
-            for(auto m : std::meta::members_of(callable_refl, std::meta::access_context::current()))
-            {
-                if (std::meta::is_operator_function(m) && std::meta::operator_of(m) == std::meta::operators::op_parentheses)
-                    return std::meta::type_of(m);
-            }
-            return std::nullopt;
-        }
-
-        struct function_type_t
-        {
-            std::meta::info functionType;
-        };
-        template<std::meta::info callable_refl>
-        consteval function_type_t get_callable_type()
-        {
-            constexpr auto type_refl = std::meta::is_type(callable_refl) ? callable_refl : std::meta::type_of(callable_refl);
-            if constexpr (std::meta::is_pointer_type(type_refl) || std::meta::is_function_type(type_refl))
-            {
-                constexpr auto no_ptr = std::meta::remove_pointer(type_refl);
-                static_assert(std::meta::is_function_type(no_ptr), "A handler of pointer type shall only be a pointer to a function");
-                return {no_ptr};
-            }else
-            {
-                static_assert(std::meta::is_object_type(type_refl), "If not a function pointer, than it shall be a functor");
-                constexpr auto func_call_t_refl = get_call_operator_overload<type_refl>();
-                static_assert(func_call_t_refl, "Could not find fitting operator() overload");
-                return {*func_call_t_refl};
-            }
-        }
-
         consteval std::optional<signal_to_param_t> find_signal_with_parameters(unsigned signal)
         {
             for(auto s : g_SignalToParams)
@@ -93,7 +60,7 @@ namespace zbm
         std::optional<zb_ret_t> invoke_signal(zb_ret_t status, zb_zdo_app_signal_hdr_t *pHdr)
         {
             static_assert(details::is_valid_signal(h.signal), "Don't know the signal");
-            constexpr auto f_type_refl = details::get_callable_type<h.function_refl>().functionType;
+            constexpr auto f_type_refl = details::get_callable_type_tpl<h.function_refl>().functionType;
             constexpr auto ret_type_refl = std::meta::return_type_of(f_type_refl);
             constexpr bool optional_default_handlling = ret_type_refl == ^^std::optional<zb_ret_t>;
             static_assert(ret_type_refl == ^^void || ret_type_refl == ^^std::optional<zb_ret_t>, "Handler may return nothing or boolean to indicate if the signal was completely processed");
