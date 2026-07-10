@@ -126,6 +126,14 @@ namespace zbm
         return eps;
     }
 
+    consteval std::optional<ep_a> try_get_ep_annotation(std::meta::info ep_mem)
+    {
+        auto ep_annotations = std::meta::annotations_of_with_type(ep_mem, ^^zbm::ep_a);
+        if (!ep_annotations.empty())
+            return std::meta::extract<ep_a>(ep_annotations[0]);
+        return std::nullopt;
+    }
+
     template<class T>
     consteval attribute_a::value_checker_t get_attribute_validator_for_type()
     {
@@ -164,6 +172,14 @@ namespace zbm
         if (!attribute_annotations.empty())
             return derive_member_annotation(user_attr_mem, attribute_annotations[0]);
         return {};
+    }
+
+    consteval std::optional<attribute_a> try_get_attribute_annotation(std::meta::info user_attr_mem)
+    {
+        auto attribute_annotations = std::meta::annotations_of_with_type(user_attr_mem, ^^zbm::attribute_a);
+        if (!attribute_annotations.empty())
+            return derive_member_annotation(user_attr_mem, attribute_annotations[0]);
+        return std::nullopt;
     }
 
     consteval std::optional<cluster_a> get_cluster_annotation(std::meta::info r_cluster)
