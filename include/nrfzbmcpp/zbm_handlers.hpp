@@ -126,9 +126,9 @@ namespace zbm
 
         consteval std::optional<std::meta::info> find_cb_param(std::meta::info param_type)
         {
-            for(auto m : std::meta::members_of(^^zb_zcl_device_callback_param_t::cb_param, std::meta::access_context::current()))
+            for(auto m : std::meta::nonstatic_data_members_of(std::meta::type_of(^^zb_zcl_device_callback_param_t::cb_param), std::meta::access_context::current()))
             {
-                if (std::meta::type_of(m) == param_type)
+                if (std::meta::dealias(std::meta::type_of(m)) == std::meta::dealias(param_type))
                     return m;
             }
             return std::nullopt;
@@ -142,17 +142,59 @@ namespace zbm
             More,
         };
 
-        consteval handler_type_e infer_handler_type(std::meta::info h)
+        consteval std::optional<handler_type_e> infer_handler_type(std::meta::info h, std::meta::info cb_param_type)
         {
-            return {};
+            auto f_type = details::get_callable_type(h);
+            if (!f_type) return std::nullopt;
+            auto params = std::meta::parameters_of(*f_type);
+            if (params.size() == 0)
+                return handler_type_e::NoArgs;
+
+            if (params.size() >= 1)
+            {
+                if (params[0] != ^^zb_zcl_device_callback_param_t*)
+                    return std::nullopt;
+
+                if (params.size() == 1)
+                    return handler_type_e::DevCallback;
+
+                if (!std::meta::is_type(cb_param_type) || params[1] != std::meta::add_pointer(cb_param_type))
+                    return std::nullopt;
+
+                if (params.size() == 2)
+                    return handler_type_e::DevCallbackAndTypedParam;
+            }
+            return handler_type_e::More;
         }
 
         template<unsigned cb_id, auto handlers>
-        void generic_cb_handler(zb_zcl_device_callback_param_t*)
+        void generic_cb_handler(zb_zcl_device_callback_param_t *pDev)
         {
             constexpr auto info = cb_id_to_param_type(cb_id);
+            constexpr std::meta::info cb_param_type = info ? *info : std::meta::info{};
             template for (constexpr auto h : handlers)
             {
+                constexpr auto ep_a = try_get_ep_annotation(h.ep);
+                if (!ep_a || ep_a->ep == pDev->endpoint)
+                {
+                    constexpr std::optional<handler_type_e> ht = infer_handler_type(h.handler, cb_param_type);
+                    static_assert(ht, "Don't know how to call handler");
+                    if constexpr (*ht == handler_type_e::NoArgs)
+                        [:h.handler:]();
+                    else if constexpr (*ht == handler_type_e::DevCallback)
+                        [:h.handler:](pDev);
+                    else if constexpr (*ht == handler_type_e::DevCallbackAndTypedParam)
+                    {
+                        constexpr auto cb_param_mem_opt = find_cb_param(cb_param_type);
+                        static_assert(cb_param_mem_opt, "Cannot find a member in the cb_param union for the type");
+                        [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:]);
+                    }
+                    else if constexpr (*ht == handler_type_e::More)
+                    {
+                        static_assert(cb_id == ZB_ZCL_SET_ATTR_VALUE_CB_ID, "Typed handlers are supported only for ZB_ZCL_SET_ATTR_VALUE_CB_ID");
+                    }
+                    //what here?
+                }
             }
         }
 

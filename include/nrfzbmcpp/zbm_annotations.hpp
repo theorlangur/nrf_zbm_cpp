@@ -128,9 +128,12 @@ namespace zbm
 
     consteval std::optional<ep_a> try_get_ep_annotation(std::meta::info ep_mem)
     {
-        auto ep_annotations = std::meta::annotations_of_with_type(ep_mem, ^^zbm::ep_a);
-        if (!ep_annotations.empty())
-            return std::meta::extract<ep_a>(ep_annotations[0]);
+        if (ep_mem != std::meta::info{})
+        {
+            auto ep_annotations = std::meta::annotations_of_with_type(ep_mem, ^^zbm::ep_a);
+            if (!ep_annotations.empty())
+                return std::meta::extract<ep_a>(ep_annotations[0]);
+        }
         return std::nullopt;
     }
 
@@ -176,9 +179,12 @@ namespace zbm
 
     consteval std::optional<attribute_a> try_get_attribute_annotation(std::meta::info user_attr_mem)
     {
-        auto attribute_annotations = std::meta::annotations_of_with_type(user_attr_mem, ^^zbm::attribute_a);
-        if (!attribute_annotations.empty())
-            return derive_member_annotation(user_attr_mem, attribute_annotations[0]);
+        if (user_attr_mem != std::meta::info{})
+        {
+            auto attribute_annotations = std::meta::annotations_of_with_type(user_attr_mem, ^^zbm::attribute_a);
+            if (!attribute_annotations.empty())
+                return derive_member_annotation(user_attr_mem, attribute_annotations[0]);
+        }
         return std::nullopt;
     }
 
