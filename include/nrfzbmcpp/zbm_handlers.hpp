@@ -119,9 +119,11 @@ namespace zbm
             NoArgs,
             DevCallback,
             DevCallbackAndTypedParam,
+            SetAttrValueTyped,
             More,
         };
 
+        template<unsigned cb_id>
         consteval std::optional<handler_type_e> infer_handler_type(std::meta::info h, std::meta::info cb_param_type)
         {
             auto f_type = refl::get_callable_type(h);
@@ -138,13 +140,38 @@ namespace zbm
                 if (params.size() == 1)
                     return handler_type_e::DevCallback;
 
-                if (!std::meta::is_type(cb_param_type) || params[1] != std::meta::add_pointer(cb_param_type))
-                    return std::nullopt;
+                if constexpr (cb_id != ZB_ZCL_SET_ATTR_VALUE_CB_ID)
+                {
+                    if (!std::meta::is_type(cb_param_type) || params[1] != std::meta::add_pointer(cb_param_type))
+                        return std::nullopt;
 
-                if (params.size() == 2)
-                    return handler_type_e::DevCallbackAndTypedParam;
+                    if (params.size() == 2)
+                        return handler_type_e::DevCallbackAndTypedParam;
+                }else
+                {
+                    if (!std::meta::is_type(cb_param_type))
+                        return std::nullopt;
+
+                    if (params.size() == 2)
+                    {
+                        if (params[1] != std::meta::add_pointer(cb_param_type))
+                            return handler_type_e::SetAttrValueTyped;
+                        else
+                            return handler_type_e::DevCallbackAndTypedParam;
+                    }
+                }
+
             }
             return handler_type_e::More;
+        }
+
+        template<handler_type_e ht, std::meta::info h, class T>
+        void call_handler_for_set_attr_value(zb_zcl_device_callback_param_t *pDev, zb_zcl_set_attr_value_param_t *pSetAttributeValue, T const& a)
+        {
+            if constexpr (ht == handler_type_e::More)
+                [:h:](pDev, pSetAttributeValue, a);
+            else if constexpr (ht == handler_type_e::SetAttrValueTyped)
+                [:h:](pDev, a);
         }
 
         template<unsigned cb_id, auto handlers>
@@ -183,7 +210,7 @@ namespace zbm
                             continue;
                         }
                     }
-                    constexpr std::optional<handler_type_e> ht = infer_handler_type(h.handler, cb_param_type);
+                    constexpr std::optional<handler_type_e> ht = infer_handler_type<cb_id>(h.handler, cb_param_type);
                     static_assert(ht, "Don't know how to call handler");
                     if constexpr (*ht == handler_type_e::NoArgs)
                         [:h.handler:]();
@@ -195,12 +222,11 @@ namespace zbm
                         static_assert(cb_param_mem_opt, "Cannot find a member in the cb_param union for the type");
                         [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:]);
                     }
-                    else if constexpr (*ht == handler_type_e::More)
+                    else if constexpr (*ht == handler_type_e::More || *ht == handler_type_e::SetAttrValueTyped)
                     {
                         static_assert(cb_id == ZB_ZCL_SET_ATTR_VALUE_CB_ID, "Typed handlers are supported only for ZB_ZCL_SET_ATTR_VALUE_CB_ID");
                         static_assert(attr_a, "This handler format requires attribute as a target");
                         zb_zcl_set_attr_value_param_t *pSetAttributeValue = &pDev->cb_param.set_attr_value_param;
-                        constexpr auto cb_param_mem_opt = find_cb_param(cb_param_type);
                         constexpr auto attr_type = std::meta::type_of(h.target);
 
                         if constexpr ((attr_a->type == type_t::OctetStr) 
@@ -215,16 +241,14 @@ namespace zbm
                             if constexpr (attr_a->type == type_t::OctetStr)
                             {
                                 octet_view_t ov{(uint8_t*)pSetAttributeValue->values.data_variable.p_data};
-                                [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:], ov);
+                                call_handler_for_set_attr_value<*ht, h.handler>(pDev, pSetAttributeValue, ov);
                             }else if constexpr (attr_a->type == type_t::CharStr)
                             {
                                 str_view_t sv{(char*)pSetAttributeValue->values.data_variable.p_data};
-                                [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:], sv);
+                                call_handler_for_set_attr_value<*ht, h.handler>(pDev, pSetAttributeValue, sv);
                             }
                         }else
-                        {
-                            [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:], *(typename[:attr_type:]*)&pSetAttributeValue->values);
-                        }
+                            call_handler_for_set_attr_value<*ht, h.handler>(pDev, pSetAttributeValue, *(typename[:attr_type:]*)&pSetAttributeValue->values);
                     }
                 }
             }
