@@ -109,8 +109,8 @@ namespace zbm
 
         //TODO: serialize_to/serialize_from
 
-        static constexpr type_t TypeId() { return type_t::CharStr; }
-        static bool TypeValidator(uint8_t *value) { return *value < N; }
+        static constexpr type_t type_id() { return type_t::CharStr; }
+        static zb_ret_t validate_value(uint8_t *value) { return *value < N ? RET_OK : RET_OUT_OF_RANGE; }
     };
 
     template<size_t N>
@@ -150,8 +150,8 @@ namespace zbm
         }
 
         //TODO: serialize_to/serialize_from
-        static constexpr type_t TypeId() { return type_t::OctetStr; }
-        static bool TypeValidator(uint8_t *value) { return *value < N; }
+        static constexpr type_t type_id() { return type_t::OctetStr; }
+        static zb_ret_t validate_value(uint8_t *value) { return *value < N ? RET_OK : RET_OUT_OF_RANGE; }
     };
 
     template<class T, size_t N> requires (std::is_trivially_copyable_v<T>
@@ -194,10 +194,14 @@ namespace zbm
 
         //TODO: serialize_to/serialize_from
 
-        static constexpr type_t TypeId() { return type_t::OctetStr; }
-        static bool TypeValidator(uint8_t *value) 
+        static constexpr type_t type_id() { return type_t::OctetStr; }
+        static zb_ret_t validate_value(uint8_t *value) 
         {
-            return (*value <= size_bytes()) && (*value % sizeof(T) == 0); 
+            if (*value > size_bytes())
+                return RET_OUT_OF_RANGE;
+            if (*value % sizeof(T) != 0)
+                return RET_INVALID_PARAMETER;
+            return RET_OK;
         }
     };
 
@@ -223,10 +227,12 @@ namespace zbm
 
         //TODO: serialize_to/serialize_from
 
-        static constexpr type_t TypeId() { return type_t::OctetStr; }
-        static bool TypeValidator(uint8_t *value) 
+        static constexpr type_t type_id() { return type_t::OctetStr; }
+        static zb_ret_t validate_value(uint8_t *value) 
         {
-            return (*value == sizeof(T)) && ValidateCustomType((const T*)(value + 1));
+            if (*value != sizeof(T))
+                return RET_INVALID_PARAMETER;
+            return T::validate_value(value + 1);
         }
     };
 
