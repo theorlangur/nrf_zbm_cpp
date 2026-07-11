@@ -15,6 +15,19 @@ namespace zbm
         operator void*() { return pStr; }
         uint8_t size() const { return pStr[0]; }
         std::string_view sv() const { return {pStr + 1, pStr[0]}; }
+        operator std::string_view() const { return sv(); }
+
+        //TODO: serialize_to/serialize_from
+    };
+
+    struct octet_view_t
+    {
+        uint8_t *pData;
+
+        operator void*() { return pData; }
+        uint8_t size() const { return pData[0]; }
+        std::span<uint8_t> data() const { return {pData + 1, pData[0]}; }
+        operator std::span<uint8_t>() const { return data(); }
 
         //TODO: serialize_to/serialize_from
     };
