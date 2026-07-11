@@ -29,11 +29,9 @@ namespace zbm
 
     struct cb_generic_filter_t
     {
-        static constexpr uint8_t kEP_ANY = 0xff;
         static constexpr uint16_t kCLUSTER_ANY = 0xffff;
         static constexpr uint16_t kATTRIBUTE_ANY = 0xffff;
 
-        uint8_t ep = kEP_ANY;
         uint16_t cluster = kCLUSTER_ANY;
         uint16_t attribute = kATTRIBUTE_ANY;
     };
@@ -46,23 +44,23 @@ namespace zbm
 
     namespace details
     {
-        consteval cb_generic_filter_t infer_filter(std::meta::info ep, std::meta::info target)
-        {
-            cb_generic_filter_t res;
-            if (auto r = try_get_ep_annotation(ep))
-                res.ep = (*r).ep;
-            if (auto r = try_get_attribute_annotation(target))
-            {
-                res.attribute = (*r).id;
-                auto cluster_r = get_cluster_annotation(target);
-                if (cluster_r)
-                    res.cluster = (*cluster_r).id;
-            }else if (auto r = get_cluster_annotation(target))
-            {
-                res.cluster = (*r).id;
-            }
-            return res;
-        }
+        //consteval cb_generic_filter_t infer_filter(std::meta::info ep, std::meta::info target)
+        //{
+        //    cb_generic_filter_t res;
+        //    if (auto r = try_get_ep_annotation(ep))
+        //        res.ep = (*r).ep;
+        //    if (auto r = try_get_attribute_annotation(target))
+        //    {
+        //        res.attribute = (*r).id;
+        //        auto cluster_r = get_cluster_annotation(target);
+        //        if (cluster_r)
+        //            res.cluster = (*cluster_r).id;
+        //    }else if (auto r = get_cluster_annotation(target))
+        //    {
+        //        res.cluster = (*r).id;
+        //    }
+        //    return res;
+        //}
             
         struct cb_id_range
         {
@@ -177,6 +175,32 @@ namespace zbm
                 constexpr auto ep_a = try_get_ep_annotation(h.ep);
                 if (!ep_a || ep_a->ep == pDev->endpoint)
                 {
+                    static constexpr auto attr_a = try_get_attribute_annotation(h.target);
+                    static constexpr auto cluster_a = get_cluster_annotation(h.target);
+                    if constexpr (cb_id == ZB_ZCL_SET_ATTR_VALUE_CB_ID)
+                    {
+                        static_assert(h.target == std::meta::info{} || attr_a || cluster_a, "Cannot use this as a target");
+                        constexpr cb_generic_filter_t filter = []()consteval ->cb_generic_filter_t
+                        {
+                            if constexpr (attr_a)
+                            {
+                                constexpr auto cluster_a = get_cluster_annotation(std::meta::parent_of(h.target));
+                                static_assert(cluster_a, "Cannot find cluster by attribute");
+                                return {.cluster = cluster_a->id, .attribute = attr_a->id};
+                            }else if constexpr (cluster_a)
+                                return {.cluster = cluster_a->id};
+                            else
+                                return {};
+                        }();
+
+                        zb_zcl_set_attr_value_param_t *pSetAttributeValue = &pDev->cb_param.set_attr_value_param;
+                        if ((filter.attribute != cb_generic_filter_t::kATTRIBUTE_ANY && filter.attribute != pSetAttributeValue->attr_id)
+                            || (filter.cluster != cb_generic_filter_t::kCLUSTER_ANY && filter.cluster != pSetAttributeValue->cluster_id)
+                           )
+                        {
+                            continue;
+                        }
+                    }
                     constexpr std::optional<handler_type_e> ht = infer_handler_type(h.handler, cb_param_type);
                     static_assert(ht, "Don't know how to call handler");
                     if constexpr (*ht == handler_type_e::NoArgs)
@@ -192,8 +216,34 @@ namespace zbm
                     else if constexpr (*ht == handler_type_e::More)
                     {
                         static_assert(cb_id == ZB_ZCL_SET_ATTR_VALUE_CB_ID, "Typed handlers are supported only for ZB_ZCL_SET_ATTR_VALUE_CB_ID");
+                        static_assert(attr_a, "This handler format requires attribute as a target");
+                        zb_zcl_set_attr_value_param_t *pSetAttributeValue = &pDev->cb_param.set_attr_value_param;
+                        constexpr auto cb_param_mem_opt = find_cb_param(cb_param_type);
+                        constexpr auto attr_type = std::meta::type_of(h.target);
+
+                        if constexpr ((attr_a->type == type_t::OctetStr) 
+                                || (attr_a->type == type_t::CharStr)
+                                || (attr_a->type == type_t::LongOctetStr)
+                                || (attr_a->type == type_t::Array)
+                                || (attr_a->type == type_t::Custom32Array)
+                                || (attr_a->type == type_t::Sec128Key)
+                            )
+                        {
+                            static_assert((attr_a->type == type_t::OctetStr) || (attr_a->type == type_t::CharStr), "Only char/octet str are supported atm");
+                            if constexpr (attr_a->type == type_t::OctetStr)
+                            {
+                                octet_view_t ov{(uint8_t*)pSetAttributeValue->values.data_variable.p_data};
+                                [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:], ov);
+                            }else if constexpr (attr_a->type == type_t::CharStr)
+                            {
+                                str_view_t sv{(char*)pSetAttributeValue->values.data_variable.p_data};
+                                [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:], sv);
+                            }
+                        }else
+                        {
+                            [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:], *(typename[:attr_type:]*)&pSetAttributeValue->values);
+                        }
                     }
-                    //what here?
                 }
             }
         }
