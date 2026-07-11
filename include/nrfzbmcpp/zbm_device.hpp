@@ -5,35 +5,6 @@
 
 namespace zbm
 {
-    namespace detail {
-        //workaround for not working constexpr std::format
-        // Fixed-capacity compile-time string generator
-        template<unsigned ID>
-        struct ep_name_provider 
-        {
-            static constexpr unsigned prefix_len = 3; // length of "cluster"
-            static constexpr unsigned total_len = prefix_len + 2;//hex
-
-            char chars[total_len + 1]{};
-
-            constexpr ep_name_provider() {
-                const char* prefix = "ep_";
-                for (unsigned i = 0; i < prefix_len; ++i) {
-                    chars[i] = prefix[i];
-                }
-                unsigned temp = ID;
-                for (unsigned i = 0; i < 2; ++i) {
-                    if ((temp & 0xf) < 10)
-                        chars[total_len - 1 - i] = '0' + (temp & 0xf);
-                    else
-                        chars[total_len - 1 - i] = 'a' + (temp & 0xf) - 10;
-                    temp >>= 4;
-                }
-                chars[total_len] = '\0';
-            }
-        };
-    }
-
     template<std::meta::info dev_data_ref>
     struct device_factory_t
     {
@@ -53,8 +24,7 @@ namespace zbm
                 constexpr auto ep_create_inst_t = std::meta::substitute(^^ep_create_t, {std::meta::reflect_constant(ei.ep), std::meta::reflect_constant(nsdm_ep_mem)});
                 using ep_end_type_t = typename [:ep_create_inst_t:]::ep_front_t;
                 constexpr auto ep_ref = std::meta::add_lvalue_reference(^^ep_end_type_t);
-                constexpr auto name = detail::ep_name_provider<ei.annotation.ep>();
-                mems.push_back(std::meta::data_member_spec(ep_ref, std::meta::data_member_options{.name = name.chars}));
+                mems.push_back(std::meta::data_member_spec(ep_ref, std::meta::data_member_options{.name = refl::name_with_hex<2>("ep_", ei.annotation.ep)}));
             }
             std::meta::define_aggregate(^^device_t, mems);
         };

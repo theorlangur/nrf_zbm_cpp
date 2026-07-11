@@ -60,7 +60,9 @@ namespace zbm
         std::optional<zb_ret_t> invoke_signal(zb_ret_t status, zb_zdo_app_signal_hdr_t *pHdr)
         {
             static_assert(details::is_valid_signal(h.signal), "Don't know the signal");
-            constexpr auto f_type_refl = details::get_callable_type_tpl<h.function_refl>().functionType;
+            constexpr auto f_type_refl_opt = refl::get_callable_type(h.function_refl);
+            static_assert(f_type_refl_opt, "Invalid signal handler");
+            constexpr auto f_type_refl = *f_type_refl_opt;
             constexpr auto ret_type_refl = std::meta::return_type_of(f_type_refl);
             constexpr bool optional_default_handlling = ret_type_refl == ^^std::optional<zb_ret_t>;
             static_assert(ret_type_refl == ^^void || ret_type_refl == ^^std::optional<zb_ret_t>, "Handler may return nothing or boolean to indicate if the signal was completely processed");

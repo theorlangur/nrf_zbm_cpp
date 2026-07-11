@@ -3,6 +3,7 @@
 
 #include "lib_object_pool.hpp"
 #include "zbm_annotations.hpp"
+#include <format>
 
 namespace zbm
 {
@@ -29,28 +30,6 @@ namespace zbm
         }();
     };
 
-    namespace detail {
-        //workaround for not working constexpr std::format
-        // Fixed-capacity compile-time string generator
-        template<unsigned ID>
-        struct arg_name_provider 
-        {
-            static constexpr unsigned prefix_len = 3; // length of "arg"
-            static constexpr unsigned total_len = prefix_len + 1;//decimal 0-9
-
-            char chars[total_len + 1]{};
-
-            constexpr arg_name_provider() {
-                const char* prefix = "arg";
-                for (unsigned i = 0; i < prefix_len; ++i) {
-                    chars[i] = prefix[i];
-                }
-                chars[prefix_len] = '0' + ID;
-                chars[total_len] = '\0';
-            }
-        };
-    }
-
     template<std::meta::info cmd_out_mem_refl>
     struct cmd_out_pool_t
     {
@@ -65,8 +44,11 @@ namespace zbm
             template for(constexpr auto argIdx : cmd_type_t::g_ParamsIndxSortedForStorage)
             {
                 auto arg_ref = cmd_type_t::g_Params[argIdx];
-                constexpr auto name = detail::arg_name_provider<argIdx>();
-                mems.push_back(std::meta::data_member_spec(arg_ref, std::meta::data_member_options{.name = name.chars}));
+                mems.push_back(std::meta::data_member_spec(
+                                arg_ref, 
+                                std::meta::data_member_options{.name = refl::name_with_hex<1>("arg", argIdx)}
+                            )
+                        );
             }
             std::meta::define_aggregate(^^arg_storage_t, mems);
         };
@@ -179,8 +161,7 @@ namespace zbm
         {
             template for(constexpr size_t i : std::ranges::views::iota(size_t(0), cmd_type_t::g_Params.size()))
             {
-                constexpr auto name = detail::arg_name_provider<i>();
-                auto const& m = src.[:find_member_by_name(^^arg_storage_t, name.chars):];
+                auto const& m = src.[:refl::find_member_by_name(^^arg_storage_t, refl::name_with_hex<1>("arg", i)):];
                 if constexpr (serializable_c<decltype(m)>)
                 {
                     dest = *m.serialize_to(dest, size_t(-1)/*real limits are unknown atm*/);

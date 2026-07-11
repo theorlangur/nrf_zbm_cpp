@@ -115,35 +115,6 @@ namespace zbm
         };
     };
 
-    namespace detail {
-        //workaround for not working constexpr std::format
-        // Fixed-capacity compile-time string generator
-        template<unsigned ID>
-        struct cluster_name_provider 
-        {
-            static constexpr unsigned prefix_len = 8; // length of "cluster_"
-            static constexpr unsigned total_len = prefix_len + 4;//hex
-
-            char chars[total_len + 1]{};
-
-            constexpr cluster_name_provider() {
-                const char* prefix = "cluster_";
-                for (unsigned i = 0; i < prefix_len; ++i) {
-                    chars[i] = prefix[i];
-                }
-                unsigned temp = ID;
-                for (unsigned i = 0; i < 4; ++i) {
-                    if ((temp & 0xf) < 10)
-                        chars[total_len - 1 - i] = '0' + (temp & 0xf);
-                    else
-                        chars[total_len - 1 - i] = 'a' + (temp & 0xf) - 10;
-                    temp >>= 4;
-                }
-                chars[total_len] = '\0';
-            }
-        };
-    }
-
     template<std::meta::info ep_ref>
     struct cluster_list_factory_t
     {
@@ -162,8 +133,11 @@ namespace zbm
             template for(constexpr auto ci : define_static_array(extract_clusters_from_ep(ep_ref)))
             {
                 auto c_ref = std::meta::substitute(^^cluster_t, {std::meta::reflect_constant(std::meta::reflect_object([:ep_ref:].[:ci.cluster:]))});
-                constexpr auto name = detail::cluster_name_provider<ci.annotation.id>();
-                mems.push_back(std::meta::data_member_spec(c_ref, std::meta::data_member_options{.name = name.chars}));
+                mems.push_back(std::meta::data_member_spec(
+                                c_ref, 
+                                std::meta::data_member_options{.name = refl::name_with_hex<4>("cluster_", ci.annotation.id)}
+                            )
+                        );
             }
             std::meta::define_aggregate(^^cluster_list_t, mems);
         };

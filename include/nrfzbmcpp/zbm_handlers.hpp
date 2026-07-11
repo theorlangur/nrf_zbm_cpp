@@ -44,24 +44,6 @@ namespace zbm
 
     namespace details
     {
-        //consteval cb_generic_filter_t infer_filter(std::meta::info ep, std::meta::info target)
-        //{
-        //    cb_generic_filter_t res;
-        //    if (auto r = try_get_ep_annotation(ep))
-        //        res.ep = (*r).ep;
-        //    if (auto r = try_get_attribute_annotation(target))
-        //    {
-        //        res.attribute = (*r).id;
-        //        auto cluster_r = get_cluster_annotation(target);
-        //        if (cluster_r)
-        //            res.cluster = (*cluster_r).id;
-        //    }else if (auto r = get_cluster_annotation(target))
-        //    {
-        //        res.cluster = (*r).id;
-        //    }
-        //    return res;
-        //}
-            
         struct cb_id_range
         {
             unsigned min;
@@ -142,7 +124,7 @@ namespace zbm
 
         consteval std::optional<handler_type_e> infer_handler_type(std::meta::info h, std::meta::info cb_param_type)
         {
-            auto f_type = details::get_callable_type(h);
+            auto f_type = refl::get_callable_type(h);
             if (!f_type) return std::nullopt;
             auto params = std::meta::parameters_of(*f_type);
             if (params.size() == 0)
