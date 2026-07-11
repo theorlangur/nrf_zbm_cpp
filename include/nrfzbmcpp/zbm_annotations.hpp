@@ -190,6 +190,8 @@ namespace zbm
 
     consteval std::optional<cluster_a> get_cluster_annotation(std::meta::info r_cluster)
     {
+        if (r_cluster == std::meta::info{})
+            return std::nullopt;
         std::meta::info cluster_type = r_cluster;
         if (!std::meta::is_type(cluster_type))
             cluster_type = std::meta::type_of(r_cluster);
@@ -199,6 +201,8 @@ namespace zbm
         {
             annotations = std::meta::annotations_of_with_type(r_cluster, ^^zbm::cluster_a);
             if (!annotations.empty())
+                break;
+            if (!std::meta::is_complete_type(cluster_type) || !std::meta::is_class_type(cluster_type))
                 break;
             auto bases = std::meta::bases_of(cluster_type, std::meta::access_context::current());
             if (bases.empty())
