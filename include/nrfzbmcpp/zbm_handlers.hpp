@@ -120,6 +120,7 @@ namespace zbm
             DevCallback,
             DevCallbackAndTypedParam,
             SetAttrValueTyped,
+            SetAttrValue1ArgTyped,
             More,
         };
 
@@ -134,11 +135,24 @@ namespace zbm
 
             if (params.size() >= 1)
             {
-                if (params[0] != ^^zb_zcl_device_callback_param_t*)
-                    return std::nullopt;
+                if constexpr (cb_id != ZB_ZCL_SET_ATTR_VALUE_CB_ID)
+                {
+                    if (params[0] != ^^zb_zcl_device_callback_param_t*)
+                        return std::nullopt;
 
-                if (params.size() == 1)
-                    return handler_type_e::DevCallback;
+                    if (params.size() == 1)
+                        return handler_type_e::DevCallback;
+                }else
+                {
+                    if (params[0] == ^^zb_zcl_device_callback_param_t*)
+                    {
+                        if (params.size() == 1)
+                            return handler_type_e::DevCallback;
+                    }else if (params.size() == 1)
+                        return handler_type_e::SetAttrValue1ArgTyped;
+                    else
+                        return std::nullopt;
+                }
 
                 if constexpr (cb_id != ZB_ZCL_SET_ATTR_VALUE_CB_ID)
                 {
@@ -172,6 +186,8 @@ namespace zbm
                 [:h:](pDev, pSetAttributeValue, a);
             else if constexpr (ht == handler_type_e::SetAttrValueTyped)
                 [:h:](pDev, a);
+            else if constexpr (ht == handler_type_e::SetAttrValue1ArgTyped)
+                [:h:](a);
         }
 
         template<unsigned cb_id, auto handlers>
@@ -222,7 +238,7 @@ namespace zbm
                         static_assert(cb_param_mem_opt, "Cannot find a member in the cb_param union for the type");
                         [:h.handler:](pDev, &pDev->cb_param.[:*cb_param_mem_opt:]);
                     }
-                    else if constexpr (*ht == handler_type_e::More || *ht == handler_type_e::SetAttrValueTyped)
+                    else if constexpr (*ht == handler_type_e::More || *ht == handler_type_e::SetAttrValueTyped || *ht == handler_type_e::SetAttrValue1ArgTyped)
                     {
                         static_assert(cb_id == ZB_ZCL_SET_ATTR_VALUE_CB_ID, "Typed handlers are supported only for ZB_ZCL_SET_ATTR_VALUE_CB_ID");
                         static_assert(attr_a, "This handler format requires attribute as a target");
