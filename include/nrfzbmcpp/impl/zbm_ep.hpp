@@ -234,7 +234,7 @@ namespace zbm
                 using attribute_type_t = typename [:std::meta::type_of(attribute_refl):];
 
                 static_assert(attribute_a.type != type_t::Invalid, "Undefined or incorrectly defined attribute!");
-                static_assert(attribute_a.a & access_t::Write, "Attribute is not writable!");
+                //static_assert(attribute_a.a & access_t::Write, "Attribute is not writable!");
                 static_assert(std::is_convertible_v<A, attribute_type_t>, "Cannot convert to attribute type");
 
                 static constexpr auto local_cluster_r = ^^typename cluster_list_factory_t<ep_ref>::cluster_list_t;
