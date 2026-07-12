@@ -103,6 +103,8 @@ namespace zbm
                 .cvc_alarm_info = cvc_alarm_ctx
             }
         {
+            static constexpr auto local_cluster_r = std::meta::remove_cvref(std::meta::type_of(local_clusters_r));
+            static constexpr auto local_cluster_mems = std::define_static_array(std::meta::nonstatic_data_members_of(local_cluster_r, std::meta::access_context::current()));
 
             for(size_t i = 0, n = clusters.size(); i < n; ++i)
             {
@@ -110,12 +112,12 @@ namespace zbm
                 if (i < 2)
                     simple_desc.app_cluster_list[i] = ca.annotation.id;
                 else
-                    simple_desc.app_cluster_list_ext[i - 2] = ca.annotation.id;
+                {
+                    if constexpr (local_cluster_mems.size() > 2)
+                        simple_desc.app_cluster_list_ext[i - 2] = ca.annotation.id;
+                }
             }
 
-            //static constexpr auto local_cluster_r = std::meta::remove_cvref(^^decltype(local_clusters));
-            static constexpr auto local_cluster_r = std::meta::remove_cvref(std::meta::type_of(local_clusters_r));
-            static constexpr auto local_cluster_mems = std::define_static_array(std::meta::nonstatic_data_members_of(local_cluster_r, std::meta::access_context::current()));
             int i = 0;
             template for(constexpr auto m : local_cluster_mems)
             {
@@ -183,13 +185,14 @@ namespace zbm
     } 
 
 
-    template<std::meta::info ep_mem_decl, std::meta::info ep_ref> requires (!std::meta::annotations_of_with_type(ep_mem_decl, ^^zbm::ep_a).empty() && !extract_clusters_from_ep(ep_ref).empty())
+    template<std::meta::info ep_mem_decl, std::meta::info ep_ref> requires (!std::meta::annotations_of_with_type(ep_mem_decl, ^^zbm::ep_a).empty())
     struct ep_create_t
     {
         using ep_type_t = [:get_ep_type_from_factory(ep_mem_decl, ep_ref):];
         static constexpr auto epa = get_ep_annotations(ep_mem_decl);
         static constexpr auto cluster_list = define_static_array(extract_clusters_from_ep(ep_ref));
         static constexpr auto cluster_refs = []() consteval{
+            static_assert(!zbm::extract_clusters_from_ep(ep_ref).empty(), "No valid clusters found!");
             std::vector<std::meta::info> refs;
             template for(constexpr auto ci : cluster_list)
                 refs.push_back(std::meta::reflect_object([:ep_ref:].[:ci.cluster:]));

@@ -47,9 +47,7 @@ namespace zbm
     struct cluster_t
     {
         using cluster_data_type_t = [: []() consteval{ return std::meta::remove_cvref(std::meta::type_of(cluster_ref)); }() :];
-        static constexpr cluster_a g_ClusterA = []() consteval{
-            return std::meta::extract<zbm::cluster_a>(std::meta::annotations_of_with_type(std::meta::dealias(^^cluster_data_type_t), ^^zbm::cluster_a)[0]);
-        }();
+        static constexpr cluster_a g_ClusterA = *get_cluster_annotation(^^cluster_data_type_t);
         static constexpr auto cluster_data_ref_refl = cluster_ref;/*reflection of the cluster field reference (reference to an actual object)*/
         static constexpr auto attributes_info = std::define_static_array(extract_attributes_from_cluster(cluster_ref));
         static constexpr size_t N = attributes_info.size();

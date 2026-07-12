@@ -193,14 +193,14 @@ namespace zbm
     {
         if (r_cluster == std::meta::info{})
             return std::nullopt;
-        std::meta::info cluster_type = r_cluster;
+        std::meta::info cluster_type = std::meta::dealias(r_cluster);
         if (!std::meta::is_type(cluster_type))
             cluster_type = std::meta::type_of(r_cluster);
         cluster_type = std::meta::remove_cvref(cluster_type);
         std::vector<std::meta::info> annotations;
         do
         {
-            annotations = std::meta::annotations_of_with_type(r_cluster, ^^zbm::cluster_a);
+            annotations = std::meta::annotations_of_with_type(cluster_type, ^^zbm::cluster_a);
             if (!annotations.empty())
                 break;
             if (!std::meta::is_complete_type(cluster_type) || !std::meta::is_class_type(cluster_type))
@@ -208,7 +208,7 @@ namespace zbm
             auto bases = std::meta::bases_of(cluster_type, std::meta::access_context::current());
             if (bases.empty())
                 break;
-            cluster_type = bases[0];
+            cluster_type = std::meta::type_of(bases[0]);
         }while(true);
 
         if (!annotations.empty())
@@ -263,7 +263,7 @@ namespace zbm
     {
         ep_base_cfg_t res;
         std::meta::info cluster_type = std::meta::remove_cvref(std::meta::type_of(cluster));
-        auto mems = std::meta::nonstatic_data_members_of(cluster_type, std::meta::access_context::current());
+        auto mems = refl::nsdms_with_parents(cluster_type);
         std::vector<attribute_with_annotation> attributes;
         for(auto mem_attr : mems)
         {
@@ -286,7 +286,7 @@ namespace zbm
     {
         ep_base_cfg_t res;
         std::meta::info cluster_type = std::meta::remove_cvref(std::meta::type_of(cluster));
-        auto mems = std::meta::nonstatic_data_members_of(cluster_type, std::meta::access_context::current());
+        auto mems = refl::nsdms_with_parents(cluster_type);
         std::vector<cmd_in_with_annotation> cmds;
         for(auto mem_attr : mems)
         {
@@ -306,7 +306,7 @@ namespace zbm
     {
         ep_base_cfg_t res;
         std::meta::info cluster_type = std::meta::remove_cvref(std::meta::type_of(cluster));
-        auto mems = std::meta::nonstatic_data_members_of(cluster_type, std::meta::access_context::current());
+        auto mems = refl::nsdms_with_parents(cluster_type);
         std::vector<cmd_out_with_annotation> cmds;
         for(auto mem_attr : mems)
         {
@@ -320,7 +320,7 @@ namespace zbm
     consteval ep_base_cfg_t analyze_cluster(std::meta::info r_cluster)
     {
         ep_base_cfg_t res;
-        auto mems = std::meta::nonstatic_data_members_of(r_cluster, std::meta::access_context::current());
+        auto mems = refl::nsdms_with_parents(r_cluster);
         for(auto m : mems)
         {
             auto annotations = std::meta::annotations_of_with_type(m, ^^zbm::attribute_a);
@@ -331,10 +331,10 @@ namespace zbm
                 res.cvc_attributes += attr_desc.is_cvc();
             }
         }
-        auto cluster_annotations = std::meta::annotations_of_with_type(r_cluster, ^^zbm::cluster_a);
-        if (!cluster_annotations.empty())
+        auto cluster_annotation = get_cluster_annotation(r_cluster);
+        if (cluster_annotation)
         {
-            auto cluster_desc = std::meta::extract<cluster_a>(cluster_annotations[0]);
+            auto cluster_desc = *cluster_annotation;
             if (cluster_desc.role == role_t::Server)
                 res.server_clusters += 1;
             else if (cluster_desc.role == role_t::Client)
@@ -385,7 +385,7 @@ namespace zbm
     template<class Annotation>
     consteval std::meta::info verify_member_in_cluster(std::meta::info cluster_type)
     {
-        auto mems = std::meta::nonstatic_data_members_of(cluster_type, std::meta::access_context::current());
+        auto mems = refl::nsdms_with_parents(cluster_type);
         std::flat_set<unsigned> unique_mems;
         for(auto m : mems)
         {

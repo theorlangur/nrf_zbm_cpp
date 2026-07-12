@@ -34,7 +34,7 @@ namespace zbm
             PowerSource power_source;
         };
 
-        static zb_zcl_basic_names_t: zb_zcl_basic_min_t
+        struct basic_names_t: basic_min_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID}]]
             str_t<33> manufacturer;
@@ -42,7 +42,7 @@ namespace zbm
             str_t<33> model;
         };
 
-        static zb_zcl_basic_ext_t: zb_zcl_basic_names_t
+        struct basic_ext_t: basic_names_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_APPLICATION_VERSION_ID}]]
             zb_uint8_t app_version;
