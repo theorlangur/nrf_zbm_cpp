@@ -121,8 +121,8 @@ namespace zbm
         /*
          * struct cluster_list_t
          * {
-         *   cluster_t cluster_abcd;//0xabcd - cluster ID
-         *   cluster_t cluster_0012;//0x0012 - cluster ID
+         *   cluster_t cluster_server_abcd;//0xabcd - cluster ID
+         *   cluster_t cluster_client_0012;//0x0012 - cluster ID
          *   ...
          *   cluster_t cluster_8321;
          * };
@@ -130,13 +130,18 @@ namespace zbm
         struct cluster_list_t;
         consteval{
             std::vector<std::meta::info> mems;
+            std::string server_prefix = "cluster_server_";
+            std::string client_prefix = "cluster_client_";
             template for(constexpr auto ci : define_static_array(extract_clusters_from_ep(ep_ref)))
             {
-                static_assert(verify_attributes_in_cluster(std::meta::type_of(ci.cluster)) == std::meta::info{}, "Found duplicate attribute in cluster definition");
+                static_assert(verify_member_in_cluster<zbm::attribute_a>(std::meta::type_of(ci.cluster)) == std::meta::info{}, "Found duplicate attribute in cluster definition");
+                static_assert(verify_member_in_cluster<zbm::cmd_in_a>(std::meta::type_of(ci.cluster)) == std::meta::info{}, "Found duplicate incomming command in cluster definition");
+                static_assert(verify_member_in_cluster<zbm::cmd_out_a>(std::meta::type_of(ci.cluster)) == std::meta::info{}, "Found duplicate outgoing command in cluster definition");
                 auto c_ref = std::meta::substitute(^^cluster_t, {std::meta::reflect_constant(std::meta::reflect_object([:ep_ref:].[:ci.cluster:]))});
+                const auto &field_prefix = ci.annotation.role == role_t::Server ? server_prefix : client_prefix;
                 mems.push_back(std::meta::data_member_spec(
                                 c_ref, 
-                                std::meta::data_member_options{.name = refl::name_with_hex<4>("cluster_", ci.annotation.id)}
+                                std::meta::data_member_options{.name = refl::name_with_hex<4>(field_prefix, ci.annotation.id)}
                             )
                         );
             }

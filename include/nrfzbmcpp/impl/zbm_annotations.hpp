@@ -53,7 +53,7 @@ namespace zbm
     static const constexpr uint32_t kCmdTimeoutDefault = uint32_t(-1);
     struct cmd_out_a: cmd_a
     {
-        uint8_t pool_size = 1;
+        uint8_t pool_size = 2;
         uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID;
         uint32_t timeout_ms = 0;
     };
@@ -382,19 +382,20 @@ namespace zbm
         return std::meta::info{};
     }
 
-    consteval std::meta::info verify_attributes_in_cluster(std::meta::info cluster_type)
+    template<class Annotation>
+    consteval std::meta::info verify_member_in_cluster(std::meta::info cluster_type)
     {
         auto mems = std::meta::nonstatic_data_members_of(cluster_type, std::meta::access_context::current());
-        std::flat_set<unsigned> attributes;
+        std::flat_set<unsigned> unique_mems;
         for(auto m : mems)
         {
-            auto annotations = std::meta::annotations_of_with_type(m, ^^zbm::attribute_a);
+            auto annotations = std::meta::annotations_of_with_type(m, ^^Annotation);
             if (!annotations.empty())
             {
-                auto attr_desc = derive_member_annotation(m, annotations[0]);
-                if (attributes.contains(attr_desc.id))
+                auto desc = std::meta::extract<Annotation>(annotations[0]);
+                if (unique_mems.contains(desc.id))
                     return m;
-                attributes.insert(attr_desc.id);
+                unique_mems.insert(desc.id);
             }
         }
         return std::meta::info{};
