@@ -58,19 +58,13 @@ namespace zbm
         consteval std::vector<std::meta::info> nsdms_with_parents_limited(std::meta::info _type, auto shall_stop)
         {
             std::vector<std::meta::info> res;
-            while(_type != std::meta::info{})
+            auto mems = std::meta::nonstatic_data_members_of(_type, std::meta::access_context::current());
+            res.append_range(mems);
+            if (!shall_stop(_type))
             {
-                auto mems = std::meta::nonstatic_data_members_of(_type, std::meta::access_context::current());
-                res.append_range(mems);
-                if (!shall_stop(_type))
-                {
-                    auto bases = std::meta::bases_of(_type, std::meta::access_context::current());
-                    if (bases.empty())
-                        _type = std::meta::info{};
-                    else
-                        _type = std::meta::type_of(bases[0]);
-                }else
-                    _type = std::meta::info{};
+                auto bases = std::meta::bases_of(_type, std::meta::access_context::current());
+                for(auto b : bases)
+                    res.append_range(nsdms_with_parents_limited(std::meta::type_of(b), shall_stop));
             }
             return res;
         }
