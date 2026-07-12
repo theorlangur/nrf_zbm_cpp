@@ -149,8 +149,8 @@ namespace zbm
     }
 
     template<class T>
-    concept serializable_c = requires(T t, uint8_t *pDst, const uint8_t *pSrc, size_t len){
-        { t.serialize_to(pDst, len) } -> std::same_as<std::optional<uint8_t*>>;
+    concept serializable_c = requires(T t, T const ct, uint8_t *pDst, const uint8_t *pSrc, size_t len){
+        { ct.serialize_to(pDst, len) } -> std::same_as<std::optional<uint8_t*>>;
         { t.serialize_from(pSrc, len) } -> std::same_as<std::optional<const uint8_t*>>;
     };
 }
