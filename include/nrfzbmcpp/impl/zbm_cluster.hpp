@@ -56,6 +56,14 @@ namespace zbm
         static constexpr auto cmd_out_info = std::define_static_array(extract_sending_commands_from_cluster(cluster_ref));
         static constexpr size_t N_cmd_out = cmd_out_info.size();
 
+        consteval static bool has_attribute(std::meta::info user_attr_mem)
+        {
+            for(auto a : attributes_info)
+                if (a.attribute == user_attr_mem)
+                    return true;
+            return false;
+        }
+
         consteval cluster_t():
             attributes{
                 {

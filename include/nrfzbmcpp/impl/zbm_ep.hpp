@@ -246,7 +246,10 @@ namespace zbm
                         using zbm_cluster_t = typename [:zbm_cluster_refl:];
                         constexpr auto zbm_cluster_type = std::meta::type_of(zbm_cluster_t::cluster_data_ref_refl);
                         if constexpr ((zbm_cluster_type == user_cluster_ref) || (std::is_base_of_v<typename [:user_cluster_ref:], typename [:zbm_cluster_type:]>))
+                        {
+                            static_assert(zbm_cluster_t::has_attribute(attribute_refl), "Attribute unknown to the framework");
                             return zbm_cluster_refl;
+                        }
                     }
                     return std::nullopt;
                 }();
