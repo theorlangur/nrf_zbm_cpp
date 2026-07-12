@@ -10,68 +10,144 @@ namespace zbm
 {
     struct str_view_t
     {
-        char *pStr;
+        const char *pStr;
 
-        operator void*() { return pStr; }
+        //operator void*() { return pStr; }
         uint8_t size() const { return pStr[0]; }
         std::string_view sv() const { return {pStr + 1, pStr[0]}; }
         operator std::string_view() const { return sv(); }
 
-        //TODO: serialize_to/serialize_from
+        std::optional<uint8_t*> serialize_to(uint8_t *pDst, size_t len) const
+        {
+            uint8_t serialize_size = size() + 1;
+            if (len >= serialize_size)
+            {
+                std::memcpy(pDst, pStr, serialize_size);
+                pDst += serialize_size;
+                return pDst;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<const uint8_t*> serialize_from(const uint8_t *pSrc, size_t len)
+        {
+            if (len < 1) return std::nullopt;
+            if (pSrc[0] >= len) return std::nullopt;
+            pStr = (const char*)pSrc;
+            uint8_t serialize_size = pSrc[0] + 1;
+            pSrc += serialize_size;
+            return pSrc;
+        }
     };
+    static_assert(serializable_c<str_view_t>);
 
     struct octet_view_t
     {
-        uint8_t *pData;
+        const uint8_t *pData;
 
-        operator void*() { return pData; }
         uint8_t size() const { return pData[0]; }
-        std::span<uint8_t> data() const { return {pData + 1, pData[0]}; }
-        operator std::span<uint8_t>() const { return data(); }
+        std::span<const uint8_t> data() const { return {pData + 1, pData[0]}; }
+        operator std::span<const uint8_t>() const { return data(); }
 
-        //TODO: serialize_to/serialize_from
+        std::optional<uint8_t*> serialize_to(uint8_t *pDst, size_t len) const
+        {
+            uint8_t serialize_size = size() + 1;
+            if (len >= serialize_size)
+            {
+                std::memcpy(pDst, pData, serialize_size);
+                pDst += serialize_size;
+                return pDst;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<const uint8_t*> serialize_from(const uint8_t *pSrc, size_t len)
+        {
+            if (len < 1) return std::nullopt;
+            if (pSrc[0] >= len) return std::nullopt;
+            pData = pSrc;
+            uint8_t serialize_size = pSrc[0] + 1;
+            pSrc += serialize_size;
+            return pSrc;
+        }
     };
+    static_assert(serializable_c<octet_view_t>);
 
     struct str_ref_t
     {
-        using __1byte_var_len = void;
         char sz;
 
-        operator void*() { return this; }
         uint8_t size() const { return sz; }
         std::string_view sv() const { return {&sz + 1, sz}; }
-
-        //TODO: serialize_to/serialize_from
     };
 
     template<size_t N>
     struct str_buf_t: public str_ref_t
     {
         char data[N];
+
+        std::optional<uint8_t*> serialize_to(uint8_t *pDst, size_t len) const
+        {
+            uint8_t serialize_size = size() + 1;
+            if (len >= serialize_size)
+            {
+                std::memcpy(pDst, this, serialize_size);
+                pDst += serialize_size;
+                return pDst;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<const uint8_t*> serialize_from(const uint8_t *pSrc, size_t len)
+        {
+            if (len < 1) return std::nullopt;
+            if (pSrc[0] >= len || pSrc[0] > N) return std::nullopt;
+            sz = pSrc[0];
+            std::memcpy(data, pSrc + 1, sz);
+            pSrc += sz + 1;
+            return pSrc;
+        }
     };
 
     struct octet_ref_t
     {
-        using __1byte_var_len = void;
         uint8_t sz;
 
-        operator void*() { return this; }
         uint8_t size() const { return sz; }
         std::span<const uint8_t> sv() const { return {&sz + 1, sz}; }
-
-        //TODO: serialize_to/serialize_from
     };
 
     template<size_t N>
     struct octet_buf_t: public octet_ref_t
     {
         uint8_t data[N];
+
+        std::optional<uint8_t*> serialize_to(uint8_t *pDst, size_t len) const
+        {
+            uint8_t serialize_size = size() + 1;
+            if (len >= serialize_size)
+            {
+                std::memcpy(pDst, this, serialize_size);
+                pDst += serialize_size;
+                return pDst;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<const uint8_t*> serialize_from(const uint8_t *pSrc, size_t len)
+        {
+            if (len < 1) return std::nullopt;
+            if (pSrc[0] >= len || pSrc[0] > N) return std::nullopt;
+            sz = pSrc[0];
+            std::memcpy(data, pSrc + 1, sz);
+            pSrc += sz + 1;
+            return pSrc;
+        }
     };
 
     template<size_t N>
     struct str_t
     {
-        using __1byte_var_len = void;
         char name[N];
 
         template<size_t M, size_t...idx>
@@ -91,7 +167,6 @@ namespace zbm
         {
         }
 
-        operator void*() { return name; }
         size_t capacity() const { return N - 1; }
         size_t size() const { return *name; }
         std::string_view sv() const { return {name + 1, size()}; }
@@ -107,16 +182,43 @@ namespace zbm
             return *this;
         }
 
-        //TODO: serialize_to/serialize_from
+        std::optional<uint8_t*> serialize_to(uint8_t *pDst, size_t len) const
+        {
+            uint8_t serialize_size = size() + 1;
+            if (len >= serialize_size)
+            {
+                std::memcpy(pDst, this, serialize_size);
+                pDst += serialize_size;
+                return pDst;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<const uint8_t*> serialize_from(const uint8_t *pSrc, size_t len)
+        {
+            if (len < 1) return std::nullopt;
+            if (pSrc[0] >= len || pSrc[0] > (N - 1)) return std::nullopt;
+            uint8_t sz = pSrc[0];
+            std::memcpy(name, pSrc, sz + 1);
+            pSrc += sz + 1;
+            return pSrc;
+        }
 
         static constexpr type_t type_id() { return type_t::CharStr; }
         static zb_ret_t validate_value(uint8_t *value) { return *value < N ? RET_OK : RET_OUT_OF_RANGE; }
     };
 
+    template<char... c>
+    constexpr str_t<sizeof...(c) + 1> operator ""_zstr()
+    {
+        constexpr uint8_t N = sizeof...(c) + 1;
+        static_assert(N < 255, "String too long");
+        return str_t<N>{.name={N - 1, c...}};
+    }
+
     template<size_t N>
     struct bin_t
     {
-        using __1byte_var_len = void;
         uint8_t data[N];
 
         template<class T, size_t M, size_t...idx>
@@ -136,9 +238,8 @@ namespace zbm
         {
         }
 
-        operator void*() { return data; }
         size_t size() const { return N - 1; }
-       std::span<const uint8_t> sv() const { return {data + 1, N - 1}; }
+        std::span<const uint8_t> sv() const { return {data + 1, N - 1}; }
 
         template<size_t M>
         bin_t<N>& operator=(std::array<uint8_t, M> const& n)
@@ -149,7 +250,28 @@ namespace zbm
             return *this;
         }
 
-        //TODO: serialize_to/serialize_from
+        std::optional<uint8_t*> serialize_to(uint8_t *pDst, size_t len) const
+        {
+            uint8_t serialize_size = size() + 1;
+            if (len >= serialize_size)
+            {
+                std::memcpy(pDst, this, serialize_size);
+                pDst += serialize_size;
+                return pDst;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<const uint8_t*> serialize_from(const uint8_t *pSrc, size_t len)
+        {
+            if (len < 1) return std::nullopt;
+            if (pSrc[0] >= len || pSrc[0] > (N - 1)) return std::nullopt;
+            uint8_t sz = pSrc[0];
+            std::memcpy(data, pSrc, sz + 1);
+            pSrc += sz + 1;
+            return pSrc;
+        }
+
         static constexpr type_t type_id() { return type_t::OctetStr; }
         static zb_ret_t validate_value(uint8_t *value) { return *value < N ? RET_OK : RET_OUT_OF_RANGE; }
     };
@@ -158,7 +280,6 @@ namespace zbm
             && std::is_trivially_constructible_v<T>)
     struct [[gnu::packed]] bin_typed_array_t
     {
-        using __1byte_var_len = void;
         uint8_t len_bytes;
         T data[N];
 
@@ -185,6 +306,7 @@ namespace zbm
         operator void*() { return this; }
         bool valid() const { return (len_bytes % sizeof(T)) == 0; }
         size_t size() const { return len_bytes / sizeof(T); }
+        size_t raw_size() const { return len_bytes; }
         static constexpr size_t max_size() { return N; }
         static constexpr size_t size_bytes() { return N * sizeof(T); }
         std::span<const T> sv() const { return {data, N}; }
@@ -192,7 +314,28 @@ namespace zbm
         template<class Me>
         auto& operator[](this Me const& t, size_t i) { return t.data[i]; }
 
-        //TODO: serialize_to/serialize_from
+        std::optional<uint8_t*> serialize_to(uint8_t *pDst, size_t len) const
+        {
+            uint8_t serialize_size = raw_size() + 1;
+            if (valid() && len >= serialize_size)
+            {
+                std::memcpy(pDst, this, serialize_size);
+                pDst += serialize_size;
+                return pDst;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<const uint8_t*> serialize_from(const uint8_t *pSrc, size_t len)
+        {
+            if (len < 1) return std::nullopt;
+            if (pSrc[0] >= len || pSrc[0] > size_bytes()) return std::nullopt;
+            if ((pSrc[0] % sizeof(T)) != 0) return std::nullopt;
+            len_bytes = pSrc[0];
+            std::memcpy(data, pSrc + 1, len_bytes);
+            pSrc += len_bytes + 1;
+            return pSrc;
+        }
 
         static constexpr type_t type_id() { return type_t::OctetStr; }
         static zb_ret_t validate_value(uint8_t *value) 
@@ -209,7 +352,6 @@ namespace zbm
             && sizeof(T) <= 255)
     struct [[gnu::packed]] bin_typed_t
     {
-        using __1byte_var_len = void;
         uint8_t len_bytes;
         T data;
 
@@ -219,13 +361,32 @@ namespace zbm
         {
         }
 
-        operator void*() { return this; }
-
         T* operator->() { return &data; }
         operator T&() { return data; }
         operator const T&() const { return data; }
 
-        //TODO: serialize_to/serialize_from
+        std::optional<uint8_t*> serialize_to(uint8_t *pDst, size_t len) const
+        {
+            uint8_t serialize_size = sizeof(T) + 1;
+            if (len >= serialize_size)
+            {
+                std::memcpy(pDst, this, serialize_size);
+                pDst += serialize_size;
+                return pDst;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<const uint8_t*> serialize_from(const uint8_t *pSrc, size_t len)
+        {
+            if (len < 1) return std::nullopt;
+            if (pSrc[0] >= len || pSrc[0] > sizeof(T)) return std::nullopt;
+            if (pSrc[0] != sizeof(T)) return std::nullopt;
+            len_bytes = pSrc[0];
+            std::memcpy(&data, pSrc + 1, len_bytes);
+            pSrc += len_bytes + 1;
+            return pSrc;
+        }
 
         static constexpr type_t type_id() { return type_t::OctetStr; }
         static zb_ret_t validate_value(uint8_t *value) 
@@ -235,17 +396,6 @@ namespace zbm
             return T::validate_value(value + 1);
         }
     };
-
-
-    template<size_t N>
-    constexpr str_t<N> ZbStr(const char (&n)[N])
-    {
-        static_assert(N < 255, "String too long");
-        return [&]<size_t...idx>(std::index_sequence<idx...>){
-            return str_t<N>{.name={N-1, n[idx]...}};
-        }(std::make_index_sequence<N-1>());
-    }
-
 
 }
 #endif
