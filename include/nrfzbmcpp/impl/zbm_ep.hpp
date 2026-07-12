@@ -238,13 +238,14 @@ namespace zbm
                 static_assert(std::is_convertible_v<A, attribute_type_t>, "Cannot convert to attribute type");
 
                 static constexpr auto local_cluster_r = ^^typename cluster_list_factory_t<ep_ref>::cluster_list_t;
-                static constexpr auto local_cluster_mems = std::define_static_array(std::meta::nonstatic_data_members_of(local_cluster_r, std::meta::access_context::current()));
+                static constexpr auto local_cluster_mems = std::define_static_array(refl::nsdms_with_parents(local_cluster_r));
                 static constexpr std::optional<std::meta::info> zbm_cluster_refl_opt = []() consteval ->std::optional<std::meta::info>{
                     template for(constexpr auto m : local_cluster_mems)
                     {
                         constexpr auto zbm_cluster_refl = std::meta::type_of(m);
                         using zbm_cluster_t = typename [:zbm_cluster_refl:];
-                        if constexpr (std::meta::type_of(zbm_cluster_t::cluster_data_ref_refl) == user_cluster_ref)
+                        constexpr auto zbm_cluster_type = std::meta::type_of(zbm_cluster_t::cluster_data_ref_refl);
+                        if constexpr ((zbm_cluster_type == user_cluster_ref) || (std::is_base_of_v<typename [:user_cluster_ref:], typename [:zbm_cluster_type:]>))
                             return zbm_cluster_refl;
                     }
                     return std::nullopt;
@@ -253,6 +254,8 @@ namespace zbm
 
                 static constexpr auto zbm_cluster_refl = *zbm_cluster_refl_opt;
                 using zbm_cluster_t = typename [:zbm_cluster_refl:];
+
+                //ZBOSS API call
                 return zb_zcl_set_attr_val(epa.ep, zbm_cluster_t::g_ClusterA.id, (zb_uint8_t)zbm_cluster_t::g_ClusterA.role, attribute_a.id, (zb_uint8_t*)&arg, checked);
             }
 
