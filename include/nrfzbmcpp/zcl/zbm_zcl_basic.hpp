@@ -29,35 +29,35 @@ namespace zbm
                 BackupEmergencySwitch = 0x86,
             };
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_ZCL_VERSION_ID}]]
-            zb_uint8_t zcl_version;
+            zb_uint8_t zcl_version{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_POWER_SOURCE_ID}]]
-            PowerSource power_source;
+            PowerSource power_source{PowerSource::Unknown};
         };
 
         struct basic_names_t: basic_min_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_MANUFACTURER_NAME_ID}]]
-            str_t<33> manufacturer;
+            str_t<33> manufacturer{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_MODEL_IDENTIFIER_ID}]]
-            str_t<33> model;
+            str_t<33> model{};
         };
 
         struct basic_ext_t: basic_names_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_APPLICATION_VERSION_ID}]]
-            zb_uint8_t app_version;
+            zb_uint8_t app_version{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_STACK_VERSION_ID}]]
-            zb_uint8_t stack_version;
+            zb_uint8_t stack_version{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_HW_VERSION_ID}]]
-            zb_uint8_t hw_version;
+            zb_uint8_t hw_version{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_DATE_CODE_ID}]]
-            str_t<17>  date_code;
+            str_t<17>  date_code{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_LOCATION_DESCRIPTION_ID}]]
-            str_t<17>  location_id;
+            str_t<17>  location_id{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_PHYSICAL_ENVIRONMENT_ID}]]
-            zb_uint8_t ph_env;
+            zb_uint8_t ph_env{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_SW_BUILD_ID}]]
-            str_t<17>  sw_ver;
+            str_t<17>  sw_ver{};
         };
     }
 }

@@ -12,7 +12,7 @@ namespace zbm
             identify_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_IDENTIFY_IDENTIFY_TIME_ID, .a = access_t::RW}]]
-            zb_uint16_t identify_time;
+            zb_uint16_t identify_time{};
         };
     }
 }

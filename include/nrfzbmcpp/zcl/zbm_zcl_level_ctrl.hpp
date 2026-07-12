@@ -12,9 +12,9 @@ namespace zbm
             level_ctrl_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_LEVEL_CONTROL_CURRENT_LEVEL_ID, .a = access_t::RPS}]]
-            zb_uint8_t  current_level;
+            zb_uint8_t  current_level{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_LEVEL_CONTROL_REMAINING_TIME_ID}]]
-            zb_uint16_t remaining_time;
+            zb_uint16_t remaining_time{};
         };
     }
 }

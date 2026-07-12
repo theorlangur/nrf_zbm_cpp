@@ -12,7 +12,7 @@ namespace zbm
             groups_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_GROUPS_NAME_SUPPORT_ID, .type=type_t::Map8}]]
-            zb_uint8_t name_support;
+            zb_uint8_t name_support{};
         };
     }
 }

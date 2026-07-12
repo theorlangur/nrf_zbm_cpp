@@ -12,15 +12,15 @@ namespace zbm
             scenes_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_SCENES_SCENE_COUNT_ID}]]
-            zb_uint8_t  scene_count;
+            zb_uint8_t  scene_count{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_SCENES_CURRENT_SCENE_ID}]]
-            zb_uint8_t  current_scene;
+            zb_uint8_t  current_scene{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_SCENES_SCENE_VALID_ID, .type=type_t::Bool}]]
-            zb_uint8_t  scene_valid;
+            zb_uint8_t  scene_valid{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_SCENES_NAME_SUPPORT_ID, .type=type_t::Map8}]]
-            zb_uint8_t  name_support;
+            zb_uint8_t  name_support{};
             [[=attribute_a{.id = ZB_ZCL_ATTR_SCENES_CURRENT_GROUP_ID}]]
-            zb_uint16_t current_group;
+            zb_uint16_t current_group{};
         };
     }
 }
