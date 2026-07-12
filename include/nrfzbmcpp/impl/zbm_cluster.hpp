@@ -132,6 +132,7 @@ namespace zbm
             std::vector<std::meta::info> mems;
             template for(constexpr auto ci : define_static_array(extract_clusters_from_ep(ep_ref)))
             {
+                static_assert(verify_attributes_in_cluster(std::meta::type_of(ci.cluster)) == std::meta::info{}, "Found duplicate attribute in cluster definition");
                 auto c_ref = std::meta::substitute(^^cluster_t, {std::meta::reflect_constant(std::meta::reflect_object([:ep_ref:].[:ci.cluster:]))});
                 mems.push_back(std::meta::data_member_spec(
                                 c_ref, 

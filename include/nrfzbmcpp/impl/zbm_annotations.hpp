@@ -2,6 +2,7 @@
 #define ZB_META_ANNOTATIONS_HPP_
 
 #include "zbm_types.hpp"
+#include <flat_set>
 
 namespace zbm
 {
@@ -348,6 +349,55 @@ namespace zbm
         for(auto c : r_clusters)
             res += analyze_cluster(c);
         return res;
+    }
+
+    consteval std::meta::info verify_clusters_in_ep(std::meta::info ep_type)
+    {
+        struct cluster_id_t
+        {
+            unsigned id;
+            role_t role;
+
+            constexpr bool operator<(const cluster_id_t &rhs) const
+            {
+                if (id != rhs.id) return id < rhs.id;
+                return role < rhs.role;
+            }
+        };
+        auto mems = std::meta::nonstatic_data_members_of(ep_type, std::meta::access_context::current());
+        std::flat_set<cluster_id_t> clusters;
+        for(auto m : mems)
+        {
+            auto cluster_type_t = std::meta::type_of(m);
+            auto cluster_annotations = std::meta::annotations_of_with_type(cluster_type_t, ^^zbm::cluster_a);
+            if (!cluster_annotations.empty())
+            {
+                auto cluster_desc = std::meta::extract<cluster_a>(cluster_annotations[0]);
+                cluster_id_t t{cluster_desc.id, cluster_desc.role};
+                if (clusters.contains(t))
+                    return m;
+                clusters.insert(t);
+            }
+        }
+        return std::meta::info{};
+    }
+
+    consteval std::meta::info verify_attributes_in_cluster(std::meta::info cluster_type)
+    {
+        auto mems = std::meta::nonstatic_data_members_of(cluster_type, std::meta::access_context::current());
+        std::flat_set<unsigned> attributes;
+        for(auto m : mems)
+        {
+            auto annotations = std::meta::annotations_of_with_type(m, ^^zbm::attribute_a);
+            if (!annotations.empty())
+            {
+                auto attr_desc = derive_member_annotation(m, annotations[0]);
+                if (attributes.contains(attr_desc.id))
+                    return m;
+                attributes.insert(attr_desc.id);
+            }
+        }
+        return std::meta::info{};
     }
 }
 

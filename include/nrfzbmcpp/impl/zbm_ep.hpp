@@ -159,7 +159,8 @@ namespace zbm
         static constexpr ep_a g_Annotation = get_ep_annotations(ep_mem_decl);//source of constexpr template-capable ep_id
         consteval
         {
-            std::meta::info ep_type = std::meta::remove_cvref(std::meta::type_of(epm));
+            constexpr std::meta::info ep_type = std::meta::remove_cvref(std::meta::type_of(epm));
+            static_assert(verify_clusters_in_ep(ep_type) == std::meta::info{}, "Duplicate cluster found");
             auto mems = std::meta::nonstatic_data_members_of(ep_type, std::meta::access_context::current());
             std::vector<std::meta::info> cluster_types;
             for(auto m : mems)
