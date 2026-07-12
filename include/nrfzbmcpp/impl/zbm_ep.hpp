@@ -1,7 +1,7 @@
 #ifndef ZB_META_EP_HPP_
 #define ZB_META_EP_HPP_
 
-#include "tools/zbm_ring_buffer.hpp"
+#include "../tools/zbm_ring_buffer.hpp"
 
 #include "zbm_alarm.hpp"
 #include "zbm_types.hpp"

@@ -4,9 +4,9 @@
 #include <optional>
 #include <zephyr/sys/reboot.h>
 #include <cstdint>
-#include "tools/zbm_function.hpp"
-#include "tools/zbm_misc_helpers.hpp"
-#include "tools/zbm_thread_lock.hpp"
+#include "../tools/zbm_function.hpp"
+#include "../tools/zbm_misc_helpers.hpp"
+#include "../tools/zbm_thread_lock.hpp"
 extern "C" {
 #include <zboss_api.h>
 }
