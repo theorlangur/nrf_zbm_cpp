@@ -56,6 +56,13 @@ namespace zbm
         }
 
         zb_af_device_ctx_t* device_context() { return &ctx; }
+
+        template<uint8_t EP>
+        auto& ep()
+        {
+            constexpr auto ep_field = refl::find_member_by_name(^^base_t, refl::name_with_hex<2>("ep_", EP));
+            return this->[:ep_field:];
+        }
     protected:
         template<size_t... I>
         constexpr device_full_t(std::index_sequence<I...>):
