@@ -17,6 +17,11 @@ namespace zbm
         constexpr uint32_t qs_to_s(uint32_t v) { return v / 4; }
 
         using namespace literals;
+
+        /**********************************************************************/
+        /* Cluster definitions                                                */
+        /**********************************************************************/
+
         static constexpr uint16_t kZB_ZCL_CLUSTER_ID_POLL_CTRL = 0x0020;
         struct 
             [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL}]]
@@ -50,6 +55,56 @@ namespace zbm
             [[=attribute_a{.id = 6}]]
             uint16_t fast_poll_timeout_max = 0;
         };
+
+
+        /**********************************************************************/
+        /* Cluster configuration helpers                                      */
+        /**********************************************************************/
+
+        struct poll_ctrl_cfg_t
+        {
+            uint8_t ep;
+            zb_callback_t callback_on_check_in;
+            bool sleepy_end_device;
+            zb_time_t long_poll_at_start = 2 * 1000;//2s
+            zb_time_t start_awake_time = 30 * 1000;//30s to configure/communicate
+        };
+
+        template<poll_ctrl_cfg_t cfg>
+        void configure_poll_control(poll_ctrl_basic_t &poll_ctrl_cluster)
+        {
+            zb_zcl_poll_control_start(0, cfg.ep);
+            zb_zcl_poll_controll_register_cb(cfg.callback_on_check_in);
+
+            if constexpr (cfg.sleepy_end_device)
+            {
+                if constexpr (cfg.start_awake_time)
+                {
+                    static alarm_ext_16_t g_EnterLowPowerLongPollMode;
+                    //we start with 2-sec long poll for the first 30 seconds
+                    zb_zdo_pim_set_long_poll_interval(cfg.long_poll_at_start);
+                    g_EnterLowPowerLongPollMode.Setup([&poll_ctrl_cluster]{
+                            if (poll_ctrl_cluster.long_poll_interval != 0xffffffff)
+                            {
+                                //printk("on_zigbee_start: long poll set to power save %d ms\r\n", (poll_ctrl_cluster.long_poll_interval * 1000 / 4));
+                                zb_zdo_pim_set_long_poll_interval(poll_ctrl_cluster.long_poll_interval * 1000 / 4);
+                            }
+                        }, cfg.start_awake_time);
+                }else
+                {
+                    if (poll_ctrl_cluster.long_poll_interval != 0xffffffff)
+                    {
+                        //printk("on_zigbee_start: long poll set to power save %d ms\r\n", (poll_ctrl_cluster.long_poll_interval * 1000 / 4));
+                        zb_zdo_pim_set_long_poll_interval(poll_ctrl_cluster.long_poll_interval * 1000 / 4);
+                    }
+                }
+            }
+            else
+            {
+                //printk("on_zigbee_start: long poll set to non-power save\r\n");
+                zb_zdo_pim_set_long_poll_interval(cfg.long_poll_at_start);
+            }
+        }
     }
 }
 #endif
