@@ -3,6 +3,7 @@
 
 #include "zbm_types.hpp"
 #include <flat_set>
+#include <algorithm>
 
 namespace zbm
 {

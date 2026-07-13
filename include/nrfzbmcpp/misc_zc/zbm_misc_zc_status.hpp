@@ -28,14 +28,14 @@ namespace zbm
             /**********************************************************************/
             /* Commands                                                           */
             /**********************************************************************/
-            [[=cmd_in_a{.id = kCMD1}]]
-            void(*cmd1)();
+            [[=cmd_in_a{kCMD1}]]
+            cmd_handling_result_t(*cmd1)();
 
-            [[=cmd_in_a{.id = kCMD2}]]
-            void(*cmd2)();
+            [[=cmd_in_a{kCMD2}]]
+            cmd_handling_result_t(*cmd2)();
 
-            [[=cmd_in_a{.id = kCMD3}]]
-            void(*cmd3)();
+            [[=cmd_in_a{kCMD3}]]
+            cmd_handling_result_t(*cmd3)();
         };
     }
 }
