@@ -277,7 +277,7 @@ namespace zbm
                 uint32_t timeout_ms = kCmdTimeoutDefault;
             };
 
-            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg, class... Args> requires (!is_zb_addr_type_c<Args> && ...)
+            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args> requires (!is_zb_addr_type_c<Args> && ...)
             std::optional<cmd_id_t> send_cmd(Args&&...args)
             {
                 using pool_t = cmd_out_pool_t<cmd_out_refl>;
