@@ -23,6 +23,7 @@ namespace zbm
 
         consteval std::meta::info find_member_by_name(std::meta::info struct_type, std::string_view name)
         {
+            struct_type = std::meta::dealias(struct_type);
             auto mems = std::meta::nonstatic_data_members_of(struct_type, std::meta::access_context::current());
             for(auto m : mems)
                 if (std::meta::identifier_of(m) == name)
