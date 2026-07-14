@@ -27,6 +27,29 @@ namespace zbm
         std::meta::info handler;
     };
 
+    template<auto handler>
+    consteval cb_handler_t on_set_attribute_value(std::meta::info ep, std::meta::info target)
+    {
+        return cb_handler_t{
+            .id = ZB_ZCL_SET_ATTR_VALUE_CB_ID, 
+            .ep = ep, 
+            .target = target, 
+            .handler = std::meta::reflect_constant(handler)
+        };
+    };
+
+    template<auto &inst, auto handler_method>
+    consteval cb_handler_t on_set_attribute_value(std::meta::info ep, std::meta::info target)
+    {
+        return cb_handler_t{
+            .id = ZB_ZCL_SET_ATTR_VALUE_CB_ID, 
+            .ep = ep, 
+            .target = target, 
+            .handler = ^^refl::call_method_1arg<inst, handler_method>
+            //.handler = std::meta::substitute(^^refl::call_method_1arg, {std::meta::reflect_object(inst), std::meta::reflect_constant(handler_method)})
+        };
+    };
+
     struct cb_generic_filter_t
     {
         static constexpr uint16_t kCLUSTER_ANY = 0xffff;

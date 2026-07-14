@@ -101,6 +101,19 @@ namespace zbm
                         return m;
             return std::meta::info{};
         }
+
+
+
+        template<class M> struct member_fn_arg;               // primary, undefined
+        template<class C, class R, class Arg>
+        struct member_fn_arg<R (C::*)(Arg)> { using type = Arg; };
+        template<class M> using member_fn_arg_t = typename member_fn_arg<M>::type;
+
+        template<auto &Instance, auto MemPtr>
+        auto call_method_1arg(member_fn_arg_t<decltype(MemPtr)> args)
+        {
+            return (Instance.*MemPtr)(args);
+        }
     }
 }
 
