@@ -58,16 +58,17 @@ namespace zbm
         zb_af_device_ctx_t* device_context() { return &ctx; }
 
         template<uint8_t EP>
-        static consteval auto ep_field()
-        {
-            return refl::find_member_by_name(^^base_t, refl::name_with_hex<2>("ep_", EP));
-        }
-
-        template<uint8_t EP>
         constexpr auto& ep()
         {
-            constexpr auto ep_field = refl::find_member_by_name(^^base_t, refl::name_with_hex<2>("ep_", EP));
-            return this->[:ep_field:];
+            template for(constexpr size_t i : std::ranges::views::indices(ep_list.size()))
+            {
+                constexpr auto ep_a = try_get_ep_annotation(ep_list[i].mem_decl);
+                if constexpr (ep_a)
+                {
+                    if constexpr (ep_a->ep == EP)
+                        return ep_create_t<ep_list[i].mem_decl, ep_list[i].obj_ref>::value;
+                }
+            }
         }
     protected:
         template<size_t... I>

@@ -46,7 +46,6 @@ namespace zbm
             .ep = ep, 
             .target = target, 
             .handler = ^^refl::call_method_1arg<inst, handler_method>
-            //.handler = std::meta::substitute(^^refl::call_method_1arg, {std::meta::reflect_object(inst), std::meta::reflect_constant(handler_method)})
         };
     };
 
