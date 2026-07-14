@@ -78,8 +78,11 @@ namespace zbm
             static arg_storage_t store(TArgs&&... args)
             {
                 return [&]<size_t... I>(std::index_sequence<I...>){
-                    //here happens the magic or re-odering arguments for storage purposes
-                    return arg_storage_t{std::forward<TArgs...[cmd_type_t::g_ParamsIndxSortedForStorage[I]]>(args...[cmd_type_t::g_ParamsIndxSortedForStorage[I]])...};
+                    if constexpr (sizeof...(I))
+                        //here happens the magic or re-odering arguments for storage purposes
+                        return arg_storage_t{std::forward<TArgs...[cmd_type_t::g_ParamsIndxSortedForStorage[I]]>(args...[cmd_type_t::g_ParamsIndxSortedForStorage[I]])...};
+                    else
+                        return arg_storage_t{};
                 }(std::make_index_sequence<sizeof...(TArgs)>());
             }
         };

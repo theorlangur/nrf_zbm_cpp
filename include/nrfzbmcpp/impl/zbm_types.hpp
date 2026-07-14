@@ -3,6 +3,7 @@
 
 extern "C" {
 #include <zboss_api.h>
+#include <zb_nrf_platform.h>
 }
 #include <type_traits>
 #include <meta>
@@ -153,6 +154,10 @@ namespace zbm
         { ct.serialize_to(pDst, len) } -> std::same_as<std::optional<uint8_t*>>;
         { t.serialize_from(pSrc, len) } -> std::same_as<std::optional<const uint8_t*>>;
     };
+
+
+    template<class T>
+    concept validatable_c = requires { T::validate_value((uint8_t*)nullptr); };
 }
 
 #endif

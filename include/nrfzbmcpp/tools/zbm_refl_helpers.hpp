@@ -74,6 +74,33 @@ namespace zbm
         {
             return nsdms_with_parents_limited(_type, [](std::meta::info) consteval{return false;});
         }
+
+        template<class MemPtr>
+        struct mem_ptr_traits
+        {
+            static constexpr bool is_mem_ptr = false;
+        };
+
+        template<class T, class MemT>
+        struct mem_ptr_traits<MemT T::*>
+        {
+            static constexpr bool is_mem_ptr = true;
+            using ClassType = T;
+            using MemberType = MemT;
+        };
+
+        consteval std::meta::info find_member_by_ptr(auto ptr)
+        {
+            using mem_traits = mem_ptr_traits<decltype(ptr)>;
+            static_assert(mem_traits::is_mem_ptr, "Unexpected type");
+
+            static constexpr auto mems = std::define_static_array(nsdms_with_parents(^^typename mem_traits::ClassType));
+            template for(constexpr auto m : mems)
+                if constexpr (std::meta::dealias(std::meta::type_of(m)) == std::meta::dealias(^^typename mem_traits::MemberType))
+                    if (&[:m:] == ptr)
+                        return m;
+            return std::meta::info{};
+        }
     }
 }
 

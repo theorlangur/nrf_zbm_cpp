@@ -229,8 +229,8 @@ namespace zbm
             template<std::meta::info attribute_refl, bool checked, class A>
             zb_zcl_status_t set_raw(A &&arg)
             {
-                constexpr auto user_cluster_ref = std::meta::parent_of(attribute_refl);
-                constexpr auto attribute_a = get_attribute_annotation(attribute_refl);
+                static constexpr auto user_cluster_ref = std::meta::parent_of(attribute_refl);
+                static constexpr auto attribute_a = get_attribute_annotation(attribute_refl);
                 using attribute_type_t = typename [:std::meta::type_of(attribute_refl):];
 
                 static_assert(attribute_a.type != type_t::Invalid, "Undefined or incorrectly defined attribute!");
@@ -239,13 +239,14 @@ namespace zbm
 
                 static constexpr auto local_cluster_r = ^^typename cluster_list_factory_t<ep_ref>::cluster_list_t;
                 static constexpr auto local_cluster_mems = std::define_static_array(refl::nsdms_with_parents(local_cluster_r));
-                static constexpr std::optional<std::meta::info> zbm_cluster_refl_opt = []() consteval ->std::optional<std::meta::info>{
+                static constexpr std::optional<std::meta::info> zbm_cluster_refl_opt = []()consteval -> std::optional<std::meta::info>
+                {
                     template for(constexpr auto m : local_cluster_mems)
                     {
                         constexpr auto zbm_cluster_refl = std::meta::type_of(m);
                         using zbm_cluster_t = typename [:zbm_cluster_refl:];
                         constexpr auto zbm_cluster_type = std::meta::type_of(zbm_cluster_t::cluster_data_ref_refl);
-                        if constexpr ((zbm_cluster_type == user_cluster_ref) || (std::is_base_of_v<typename [:user_cluster_ref:], typename [:zbm_cluster_type:]>))
+                        if constexpr ((zbm_cluster_type == user_cluster_ref) || std::meta::is_base_of_type(user_cluster_ref, zbm_cluster_type))
                         {
                             static_assert(zbm_cluster_t::has_attribute(attribute_refl), "Attribute unknown to the framework");
                             return zbm_cluster_refl;
@@ -379,6 +380,7 @@ namespace zbm
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg>
             std::optional<cmd_id_t> send_cmd_impl(auto args_pool_idx)
             {
+                //constexpr std::meta::info cmd_out_refl = std::meta::reflect_constant(cmd_out_mem);
                 using pool_t = cmd_out_pool_t<cmd_out_refl>;
                 typename pool_t::RequestPtr raii(pool_t::g_Pool.IdxToPtr(*args_pool_idx));
                 constexpr auto kTimeout = cfg.timeout_ms == kCmdTimeoutDefault ? pool_t::cmd_a.timeout_ms : cfg.timeout_ms;

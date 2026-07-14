@@ -256,8 +256,17 @@ namespace zbm
                             static_assert((attr_a->type == type_t::OctetStr) || (attr_a->type == type_t::CharStr), "Only char/octet str are supported atm");
                             if constexpr (attr_a->type == type_t::OctetStr)
                             {
-                                octet_view_t ov{(uint8_t*)pSetAttributeValue->values.data_variable.p_data};
-                                call_handler_for_set_attr_value<*ht, h.handler>(pDev, pSetAttributeValue, ov);
+                                if constexpr (std::meta::has_template_arguments(attr_type) && std::meta::template_of(attr_type) == ^^bin_typed_t)
+                                {
+                                    constexpr auto act_type_refl = std::meta::template_arguments_of(attr_type)[0];
+                                    bin_view_t<typename [:act_type_refl:]> ov{(uint8_t*)pSetAttributeValue->values.data_variable.p_data};
+                                    call_handler_for_set_attr_value<*ht, h.handler>(pDev, pSetAttributeValue, ov);
+                                }
+                                else
+                                {
+                                    octet_view_t ov{(uint8_t*)pSetAttributeValue->values.data_variable.p_data};
+                                    call_handler_for_set_attr_value<*ht, h.handler>(pDev, pSetAttributeValue, ov);
+                                }
                             }else if constexpr (attr_a->type == type_t::CharStr)
                             {
                                 str_view_t sv{(char*)pSetAttributeValue->values.data_variable.p_data};

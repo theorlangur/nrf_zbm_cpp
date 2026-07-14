@@ -142,7 +142,7 @@ namespace zbm
     template<class T>
     consteval attribute_a::value_checker_t get_attribute_validator_for_type()
     {
-        if constexpr (requires { T::validate_value((uint8_t*)nullptr); })
+        if constexpr (validatable_c<T>)
             return &T::validate_value;
         else
             return {};

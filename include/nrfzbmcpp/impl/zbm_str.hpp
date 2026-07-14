@@ -393,9 +393,24 @@ namespace zbm
         {
             if (*value != sizeof(T))
                 return RET_INVALID_PARAMETER;
-            return T::validate_value(value + 1);
+
+            if constexpr (validatable_c<T>)
+                return T::validate_value(value + 1);
+            else
+                return RET_OK;
         }
     };
 
+    template<class T>
+    struct bin_view_t
+    {
+        const uint8_t *pData;
+
+        static constexpr type_t type_id() { return type_t::OctetStr; }
+
+        T* operator->() { return (T*)(pData + 1); }
+        operator T&() { return *(T*)(pData + 1); }
+        operator const T&() const { return *(T*)(pData + 1); }
+    };
 }
 #endif
