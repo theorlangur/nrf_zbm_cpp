@@ -57,6 +57,16 @@ namespace zbm
 
         zb_af_device_ctx_t* device_context() { return &ctx; }
 
+        void init()
+        {
+            template for(constexpr size_t i : std::ranges::views::indices(ep_list.size()))
+            {
+                constexpr auto ep_a = try_get_ep_annotation(ep_list[i].mem_decl);
+                if constexpr (ep_a)
+                    ep_create_t<ep_list[i].mem_decl, ep_list[i].obj_ref>::value.init();
+            }
+        }
+
         template<uint8_t EP>
         constexpr auto& ep()
         {
