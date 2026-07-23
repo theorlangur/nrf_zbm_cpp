@@ -50,6 +50,8 @@ namespace zbm
                 }
             }
         }
+        auto part_it = std::partition(res.begin(), res.end(), [](auto &i){ return i.addHandlerDepth > 0; });
+        res.resize(std::distance(res.begin(), part_it));
         return res;
     }
 
