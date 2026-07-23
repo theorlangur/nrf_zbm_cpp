@@ -239,7 +239,9 @@ namespace zbm
     };
     consteval std::vector<cluster_with_annotation> extract_clusters_from_ep(std::meta::info ep)
     {
-        std::meta::info ep_type = std::meta::remove_cvref(std::meta::type_of(ep));
+        std::meta::info ep_type = ep;
+        if (!std::meta::is_type(ep_type))
+            ep_type = std::meta::remove_cvref(std::meta::type_of(ep_type));
         auto mems = std::meta::nonstatic_data_members_of(ep_type, std::meta::access_context::current());
         std::vector<cluster_with_annotation> clusters;
         for(auto mem_cluster : mems)

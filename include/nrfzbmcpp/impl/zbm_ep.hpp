@@ -61,6 +61,30 @@ namespace zbm
     template<std::meta::info local_clusters_r>
     struct meta_ctr_param_t{};
 
+    struct cluster_global_info_t
+    {
+        uint16_t id;
+        role_t role;
+        uint8_t addHandlerDepth;
+    };
+    template<size_t N>
+    using cluster_global_info_list_t = std::array<cluster_global_info_t, N>;
+
+    template<class T>
+    concept is_cluster_global_info_list_c = (std::meta::template_of(std::meta::dealias(^^T)) == ^^std::array) 
+                && std::same_as<typename T::value_type, cluster_global_info_t>;
+    template<is_cluster_global_info_list_c auto info>
+    struct meta_ctr_add_handler_param_t{};
+
+    template<size_t N>
+    consteval static uint8_t get_add_depth_for_cluster(cluster_global_info_list_t<N> info, uint16_t cluster_id, role_t role, uint8_t default_depth = 0) 
+    {
+        for(auto i : info)
+            if (i.id == cluster_id && i.role == role)
+                return i.addHandlerDepth;
+        return default_depth;
+    }
+
     template<ep_base_cfg_t cfg, uint8_t ep_id>
     struct ep_base_t
     {
@@ -68,8 +92,8 @@ namespace zbm
 
         consteval ep_base_t(ep_base_t const&) = delete;
         consteval ep_base_t(ep_base_t &&) = delete;
-        template<std::meta::info local_clusters_r>
-        consteval ep_base_t(ep_a epa, auto clusters, meta_ctr_param_t<local_clusters_r> dummy):
+        template<size_t N, std::meta::info local_clusters_r, cluster_global_info_list_t<N> add_handlers_per_cluster>
+        consteval ep_base_t(ep_a epa, auto clusters, meta_ctr_param_t<local_clusters_r> dummy, meta_ctr_add_handler_param_t<add_handlers_per_cluster> dummy2):
             simple_desc{ 
                 /*base struct*/{
                     .endpoint = epa.ep,
@@ -121,13 +145,15 @@ namespace zbm
             {
                 auto const& ca = clusters[i];
                 static constexpr auto cluster_refl = std::meta::reflect_object([:local_clusters_r:].[:m:]);//cluster_t &
+                static constexpr auto cluster_desc_refl = std::meta::remove_cvref(std::meta::type_of(cluster_refl));
+                using cluster_desc_t = typename [:cluster_desc_refl:];
                 clusters_descriptions[i] = zb_zcl_cluster_desc_t{
                     .cluster_id = ca.annotation.id,
                     .attr_count = std::size([:local_clusters_r:].[:m:].attributes),
                     .attr_desc_list = [:local_clusters_r:].[:m:].attributes,
                     .role_mask = (zb_uint8_t)ca.annotation.role,
                     .manuf_code = ca.annotation.manuf_code,
-                    .cluster_init = &generic_cluster_init<cluster_refl, ep_id>
+                    .cluster_init = &generic_cluster_init<cluster_refl, ep_id, get_add_depth_for_cluster(add_handlers_per_cluster, cluster_desc_t::g_ClusterA.id, cluster_desc_t::g_ClusterA.role, 0)>
                 };
                 ++i;
             }
@@ -183,19 +209,19 @@ namespace zbm
     } 
 
 
-    template<std::meta::info ep_mem_decl, std::meta::info ep_ref> requires (!std::meta::annotations_of_with_type(ep_mem_decl, ^^zbm::ep_a).empty())
+    template<std::meta::info ep_mem_decl, std::meta::info ep_ref, is_cluster_global_info_list_c auto global_cluster_info> requires (!std::meta::annotations_of_with_type(ep_mem_decl, ^^zbm::ep_a).empty())
     struct ep_create_t
     {
         using ep_type_t = [:get_ep_type_from_factory(ep_mem_decl, ep_ref):];
         static constexpr auto epa = get_ep_annotations(ep_mem_decl);
         static constexpr auto cluster_list = define_static_array(extract_clusters_from_ep(ep_ref));
-        static constexpr auto cluster_refs = []() consteval{
-            static_assert(!zbm::extract_clusters_from_ep(ep_ref).empty(), "No valid clusters found!");
-            std::vector<std::meta::info> refs;
-            template for(constexpr auto ci : cluster_list)
-                refs.push_back(std::meta::reflect_object([:ep_ref:].[:ci.cluster:]));
-            return define_static_array(refs);
-        }();
+        //static constexpr auto cluster_refs = []() consteval{
+        //    static_assert(!zbm::extract_clusters_from_ep(ep_ref).empty(), "No valid clusters found!");
+        //    std::vector<std::meta::info> refs;
+        //    template for(constexpr auto ci : cluster_list)
+        //        refs.push_back(std::meta::reflect_object([:ep_ref:].[:ci.cluster:]));
+        //    return define_static_array(refs);
+        //}();
 
         struct ep_front_t: ep_type_t
         {
@@ -408,7 +434,7 @@ namespace zbm
         constinit static inline cluster_list_factory_t<ep_ref>::cluster_list_t clusters{};
         //actual place where ZBOSS structures for endpoints with cluster descriptions are stored
         constinit static inline ep_front_t value{
-            {.ep_data{epa, cluster_list, meta_ctr_param_t<^^clusters>{}}}
+            {.ep_data{epa, cluster_list, meta_ctr_param_t<^^clusters>{}, meta_ctr_add_handler_param_t<global_cluster_info>{}}}
         };
     };
 }

@@ -6,39 +6,69 @@
 
 namespace zbm
 {
+    struct additional_cluster_handlers_base_t
+    {
+        uint8_t ep=0xff;
+    };
+
+    constexpr static  uint8_t kNeedsValueChecker = 0x01;
+    constexpr static  uint8_t kNeedsCmdHandler = 0x02;
+    constexpr static  uint8_t kNeedsBoth = kNeedsValueChecker | kNeedsCmdHandler;
+
+    template<uint8_t kNeeds>
     struct additional_cluster_handlers_t
     {
-        uint8_t ep;
-        uint16_t cluster;
+        static_assert((kNeeds & kNeedsBoth) && !(kNeeds & ~kNeedsBoth), "Invalid configuration of the additional cluster handlers");
+    };
+
+    template<>
+    struct additional_cluster_handlers_t<kNeedsBoth>: additional_cluster_handlers_base_t
+    {
         zb_zcl_cluster_check_value_t checker;
         zb_zcl_cluster_handler_t cmd_handler;
     };
 
+    template<>
+    struct additional_cluster_handlers_t<kNeedsValueChecker>: additional_cluster_handlers_base_t
+    {
+        zb_zcl_cluster_check_value_t checker;
+    };
+
+    template<>
+    struct additional_cluster_handlers_t<kNeedsCmdHandler>: additional_cluster_handlers_base_t
+    {
+        zb_zcl_cluster_handler_t cmd_handler;
+    };
+
+    template<uint16_t clusterId, uint8_t kNeeds, size_t kMaxEntries>
     struct reserved_array_additional_cluster_handlers_t
     {
-        constexpr static size_t kMaxEntries = 4;
-        uint8_t size = 0;
-        additional_cluster_handlers_t slots[kMaxEntries] = {};
+        using storage_t = additional_cluster_handlers_t<kNeeds>;
+        storage_t slots[kMaxEntries] = {};
 
-        additional_cluster_handlers_t* add()
+        storage_t* add()
         {
-            if (size < kMaxEntries)
-                return &slots[size++];
+            for(auto &s : slots)
+                if (s.ep == 0xff)
+                    return &s;
             return nullptr;
         }
 
-        additional_cluster_handlers_t* find(uint8_t ep, uint16_t cluster)
+        storage_t* find(uint8_t ep)
         {
-            for(int i = 0; i < size; ++i)
+            for(auto &s : slots)
             {
-                if (slots[i].ep == ep && slots[i].cluster == cluster)
-                    return &slots[i];
+                if (s.ep == ep)
+                    return &s;
+                else if (s.ep == 0xff)
+                    return nullptr;
             }
             return nullptr;
         }
     };
 
-    constinit static inline reserved_array_additional_cluster_handlers_t g_AdditionalClusterHandlers;
+    template<uint16_t clusterId, uint8_t kNeeds, size_t N>
+    constinit static inline reserved_array_additional_cluster_handlers_t<clusterId, kNeeds, N> g_AdditionalClusterHandlers;
 
     using global_error_handler_t = void(*)(zb_ret_t r);
     constinit inline global_error_handler_t g_GlobalErrorHandler = nullptr;
@@ -55,6 +85,21 @@ namespace zbm
         static constexpr size_t N_cmd_in = cmd_in_info.size();
         static constexpr auto cmd_out_info = std::define_static_array(extract_sending_commands_from_cluster(cluster_ref));
         static constexpr size_t N_cmd_out = cmd_out_info.size();
+
+
+        consteval static  size_t attributes_want_check()
+        {
+            size_t count = 0;
+            for(auto ai : attributes_info)
+                if ((ai.annotation.a & access_t::Write) && ai.annotation.validator)
+                    ++count;
+            return count;
+        }
+
+        consteval static uint8_t get_handling_needs()
+        {
+            return (N_cmd_in >= 0) * kNeedsCmdHandler + (attributes_want_check() > 0) * kNeedsValueChecker;
+        }
 
         consteval static bool has_attribute(std::meta::info user_attr_mem)
         {
@@ -280,9 +325,12 @@ namespace zbm
         }(std::make_index_sequence<params.size()>());
     }
 
-    template<std::meta::info cluster_ref, uint8_t ep>
+    template<std::meta::info cluster_ref, uint8_t ep, uint8_t addHandlingDepth>
     inline zb_bool_t on_cluster_cmd_handling(zb_uint8_t param)
     {
+        using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_ref)):];
+        constexpr auto i = cluster_desc_t::g_ClusterA;
+
         if ( ZB_ZCL_GENERAL_GET_CMD_LISTS_PARAM == param )
         {
             ZCL_CTX().zb_zcl_cluster_cmd_list = &[:cluster_ref:].cmd_list;
@@ -293,13 +341,23 @@ namespace zbm
         cmd_handling_result_t r;
         if (cmd_info->addr_data.common_data.dst_endpoint != ep)
         {
-            auto *pSlot = g_AdditionalClusterHandlers.find(cmd_info->addr_data.common_data.dst_endpoint, cmd_info->cluster_id);
-            if (!pSlot)
+            ZB_ASSERT(i.id == cmd_info->cluster_id);
+            if constexpr (addHandlingDepth > 0)
             {
+                auto *pSlot = g_AdditionalClusterHandlers<i.id, cluster_desc_t::get_handling_needs(), addHandlingDepth>.find(cmd_info->addr_data.common_data.dst_endpoint);
+                if (!pSlot)
+                {
+                    r.status = RET_NOT_FOUND;
+                    r.processed = true;
+                }else
+                    return pSlot->cmd_handler(param);
+            }else
+            {
+                //something is terribly wrong
+                ZB_ASSERT(addHandlingDepth > 0);
                 r.status = RET_NOT_FOUND;
                 r.processed = true;
-            }else
-                return pSlot->cmd_handler(param);
+            }
         }else
         {
             using cluster_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_ref)):];
@@ -335,21 +393,28 @@ namespace zbm
         return processed;
     }
 
-    template<std::meta::info cluster_ref, uint8_t ep>
+    template<std::meta::info cluster_ref, uint8_t ep, uint8_t addHandlingDepth>
     inline zb_ret_t on_cluster_check_value(zb_uint16_t attr_id, zb_uint8_t endpoint, zb_uint8_t *value)
     {
-        using cluster_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_ref)):];
-        constexpr auto i = cluster_t::g_ClusterA;
+        using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_ref)):];
+        constexpr auto i = cluster_desc_t::g_ClusterA;
         if (ep != endpoint)
         {
-            auto *pSlot = g_AdditionalClusterHandlers.find(endpoint, i.id);
-            if (!pSlot)
+            if constexpr (addHandlingDepth > 0)
+            {
+                auto *pSlot = g_AdditionalClusterHandlers<i.id, cluster_desc_t::get_handling_needs(), addHandlingDepth>.find(endpoint);
+                if (!pSlot)
+                    return RET_BUSY;
+                else
+                    return pSlot->checker(attr_id, endpoint, value);
+            }else
+            {
+                ZB_ASSERT(false);
                 return RET_BUSY;
-            else
-                return pSlot->checker(attr_id, endpoint, value);
+            }
         }
 
-        template for (constexpr auto ai : cluster_t::attributes_info)
+        template for (constexpr auto ai : cluster_desc_t::attributes_info)
         {
             if constexpr ((ai.annotation.a & access_t::Write) && ai.annotation.validator)
             {
@@ -364,7 +429,7 @@ namespace zbm
         return RET_OK;
     }
 
-    template<std::meta::info cluster_r, uint8_t ep>
+    template<std::meta::info cluster_r, uint8_t ep, uint8_t addHandlingDepth>
     void generic_cluster_init()
     {
         using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_r)):];
@@ -376,18 +441,12 @@ namespace zbm
         zb_zcl_cluster_write_attr_hook_t write_hook = nullptr;
         zb_zcl_cluster_handler_t cmd_handler = nullptr;
         if constexpr (cluster_desc_t::N_cmd_in >= 0)
-            cmd_handler = &on_cluster_cmd_handling<cluster_r, ep>;
+            cmd_handler = &on_cluster_cmd_handling<cluster_r, ep, addHandlingDepth>;
 
-        constexpr size_t attributes_want_check = []() consteval{
-            size_t count = 0;
-            for(auto ai : cluster_desc_t::attributes_info)
-                if ((ai.annotation.a & access_t::Write) && ai.annotation.validator)
-                    ++count;
-            return count;
-        }();//immediately-invoked-lambda
+        constexpr size_t attributes_want_check = cluster_desc_t::attributes_want_check();
 
         if constexpr (attributes_want_check > 0)
-            check_val = &on_cluster_check_value<cluster_r, ep>;
+            check_val = &on_cluster_check_value<cluster_r, ep, addHandlingDepth>;
 
         if (check_val || write_hook || cmd_handler)
         {
@@ -398,16 +457,25 @@ namespace zbm
                     );
             if (ret == RET_ALREADY_EXISTS)
             {
-                auto *pSlot = g_AdditionalClusterHandlers.add();
-                if (pSlot)
+                if constexpr (addHandlingDepth > 0)
                 {
-                    pSlot->ep = ep;
-                    pSlot->cluster = i.id;
-                    pSlot->checker = check_val;
-                    pSlot->cmd_handler = cmd_handler;
-                }else if (g_GlobalErrorHandler)
+                    auto *pSlot = g_AdditionalClusterHandlers<i.id, cluster_desc_t::get_handling_needs(), addHandlingDepth>.add();
+                    if (pSlot)
+                    {
+                        pSlot->ep = ep;
+                        pSlot->checker = check_val;
+                        pSlot->cmd_handler = cmd_handler;
+                    }
+                    else if (g_GlobalErrorHandler)
+                    {
+                        g_GlobalErrorHandler(RET_NO_MEMORY);
+                    }
+                }else
                 {
-                    g_GlobalErrorHandler(RET_NO_MEMORY);
+                    if (g_GlobalErrorHandler)
+                    {
+                        g_GlobalErrorHandler(RET_NO_MEMORY);
+                    }
                 }
             }
         }
