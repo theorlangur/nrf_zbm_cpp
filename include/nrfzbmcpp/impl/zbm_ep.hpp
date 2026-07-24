@@ -25,6 +25,7 @@ namespace zbm
 
     struct short_addr_t
     {
+        using addr_tag = void;
         uint16_t short_addr;
         uint8_t ep;
     };
@@ -351,7 +352,13 @@ namespace zbm
                 return send_cmd_impl<cmd_out_ref, cfg>({.addr_short = 0}, addr_mode_t::NoAddr_NoEP, 0, std::forward<Args>(args)...);
             }
 
-            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg, class... Args>
+            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
+            std::optional<cmd_id_t> send_cmd(short_addr_t a, Args&&...args)
+            {
+                return send_cmd_impl<cmd_out_refl, cfg>({.addr_short = a.short_addr}, addr_mode_t::Dst16EP, a.ep, std::forward<Args>(args)...);
+            }
+
+            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(long_addr_t a, Args&&...args)
             {
                 zb_addr_u addr;
@@ -359,13 +366,13 @@ namespace zbm
                 return send_cmd_impl<cmd_out_refl, cfg>(addr, addr_mode_t::Dst64EP, a.ep, std::forward<Args>(args)...);
             }
 
-            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg, class... Args>
+            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(group_addr_t a, Args&&...args)
             {
                 return send_cmd_impl<cmd_out_refl, cfg>({.addr_short = a.group}, addr_mode_t::Group_NoEP, 0, std::forward<Args>(args)...);
             }
 
-            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg, class... Args>
+            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(bind_id_addr_t a, Args&&...args)
             {
                 return send_cmd_impl<cmd_out_refl, cfg>({.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, std::forward<Args>(args)...);

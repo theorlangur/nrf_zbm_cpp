@@ -204,6 +204,11 @@ namespace zbm
             return pSrc;
         }
 
+        static constexpr size_t serialize_limit()
+        {
+            return N;
+        }
+
         static constexpr type_t type_id() { return type_t::CharStr; }
         static zb_ret_t validate_value(uint8_t *value) { return *value < N ? RET_OK : RET_OUT_OF_RANGE; }
     };
@@ -272,6 +277,11 @@ namespace zbm
             return pSrc;
         }
 
+        static constexpr size_t serialize_limit()
+        {
+            return N;
+        }
+
         static constexpr type_t type_id() { return type_t::OctetStr; }
         static zb_ret_t validate_value(uint8_t *value) { return *value < N ? RET_OK : RET_OUT_OF_RANGE; }
     };
@@ -337,6 +347,11 @@ namespace zbm
             return pSrc;
         }
 
+        static constexpr size_t serialize_limit()
+        {
+            return size_bytes() + 1;
+        }
+
         static constexpr type_t type_id() { return type_t::OctetStr; }
         static zb_ret_t validate_value(uint8_t *value) 
         {
@@ -386,6 +401,11 @@ namespace zbm
             std::memcpy(&data, pSrc + 1, len_bytes);
             pSrc += len_bytes + 1;
             return pSrc;
+        }
+
+        static constexpr size_t serialize_limit()
+        {
+            return sizeof(T) + 1;
         }
 
         static constexpr type_t type_id() { return type_t::OctetStr; }

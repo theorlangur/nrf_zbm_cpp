@@ -78,7 +78,7 @@ namespace zbm
         zb_uint8_t ep;
         zb_uint16_t dev_id;
         zb_uint8_t dev_ver;
-        uint8_t cmd_queue_depth = 3;//0 - auto
+        uint8_t cmd_queue_depth = 2;//0 - auto
         uint16_t profile_id = ZB_AF_HA_PROFILE_ID;
     };
 

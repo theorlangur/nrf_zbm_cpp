@@ -46,6 +46,9 @@ namespace zbm
             [[=cmd_out_a{{.id = ZB_ZCL_CMD_ON_OFF_ON_ID}}]]
             [[no_unique_address]]cmd_out_t<void()> on;
 
+            [[=cmd_out_a{{.id = ZB_ZCL_CMD_ON_OFF_TOGGLE_ID}}]]
+            [[no_unique_address]]cmd_out_t<void()> toggle;
+
             [[=cmd_out_a{{.id = ZB_ZCL_CMD_ON_OFF_ON_WITH_TIMED_OFF_ID}}]]
             [[no_unique_address]]cmd_out_t<void(uint8_t, uint16_t, uint16_t)> on_with_timed_off;
         };
