@@ -4,8 +4,8 @@
 extern "C" {
 #include <zboss_api.h>
 #include <zb_nrf_platform.h>
-#include <zigbee/zigbee_error_handler.h>
 }
+#include <zigbee/zigbee_error_handler.h>
 
 #include <type_traits>
 #include <meta>

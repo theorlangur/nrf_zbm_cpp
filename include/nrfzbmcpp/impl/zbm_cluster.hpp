@@ -98,7 +98,7 @@ namespace zbm
 
         consteval static uint8_t get_handling_needs()
         {
-            return (N_cmd_in >= 0) * kNeedsCmdHandler + (attributes_want_check() > 0) * kNeedsValueChecker;
+            return (N_cmd_in > 0) * kNeedsCmdHandler + (attributes_want_check() > 0) * kNeedsValueChecker;
         }
 
         consteval static bool has_attribute(std::meta::info user_attr_mem)
@@ -440,7 +440,7 @@ namespace zbm
         zb_zcl_cluster_check_value_t check_val = nullptr;
         zb_zcl_cluster_write_attr_hook_t write_hook = nullptr;
         zb_zcl_cluster_handler_t cmd_handler = nullptr;
-        if constexpr (cluster_desc_t::N_cmd_in >= 0)
+        if constexpr (cluster_desc_t::N_cmd_in > 0)
             cmd_handler = &on_cluster_cmd_handling<cluster_r, ep, addHandlingDepth>;
 
         constexpr size_t attributes_want_check = cluster_desc_t::attributes_want_check();
