@@ -216,13 +216,6 @@ namespace zbm
         using ep_type_t = [:get_ep_type_from_factory(ep_mem_decl, ep_ref):];
         static constexpr auto epa = get_ep_annotations(ep_mem_decl);
         static constexpr auto cluster_list = define_static_array(extract_clusters_from_ep(ep_ref));
-        //static constexpr auto cluster_refs = []() consteval{
-        //    static_assert(!zbm::extract_clusters_from_ep(ep_ref).empty(), "No valid clusters found!");
-        //    std::vector<std::meta::info> refs;
-        //    template for(constexpr auto ci : cluster_list)
-        //        refs.push_back(std::meta::reflect_object([:ep_ref:].[:ci.cluster:]));
-        //    return define_static_array(refs);
-        //}();
 
         struct ep_front_t: ep_type_t
         {
@@ -231,7 +224,7 @@ namespace zbm
             /* Various types and declarations and statics                         */
             /**********************************************************************/
             static constexpr size_t kCmdQueueSize = epa.cmd_queue_depth;
-            using cmd_id_t = int;
+            using cmd_id_t = uint8_t;
             using cmd_send_status_cb_t = void(*)(cmd_id_t, zb_zcl_command_send_status_t *);
             using send_request_func_t = bool (*)(uint16_t argsPoolIdx);
             using cancel_func_t = void (*)(uint16_t argsPoolIdx);
@@ -349,33 +342,43 @@ namespace zbm
             template<std::meta::info cmd_out_ref, send_cmd_config_t cfg={}, class... Args> requires (!is_zb_addr_type_c<Args> && ...)
             std::optional<cmd_id_t> send_cmd(Args&&...args)
             {
-                return send_cmd_impl<cmd_out_ref, cfg>({.addr_short = 0}, addr_mode_t::NoAddr_NoEP, 0, std::forward<Args>(args)...);
+                static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_ref);
+                static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_ref);
+                return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::NoAddr_NoEP, 0, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(short_addr_t a, Args&&...args)
             {
-                return send_cmd_impl<cmd_out_refl, cfg>({.addr_short = a.short_addr}, addr_mode_t::Dst16EP, a.ep, std::forward<Args>(args)...);
+                static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
+                static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
+                return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = a.short_addr}, addr_mode_t::Dst16EP, a.ep, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(long_addr_t a, Args&&...args)
             {
+                static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
+                static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
                 zb_addr_u addr;
                 std::memcpy(addr.addr_long, a.long_addr, sizeof(a.long_addr));
-                return send_cmd_impl<cmd_out_refl, cfg>(addr, addr_mode_t::Dst64EP, a.ep, std::forward<Args>(args)...);
+                return send_cmd_impl<cfg>(cmd_a, cluster_a, addr, addr_mode_t::Dst64EP, a.ep, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(group_addr_t a, Args&&...args)
             {
-                return send_cmd_impl<cmd_out_refl, cfg>({.addr_short = a.group}, addr_mode_t::Group_NoEP, 0, std::forward<Args>(args)...);
+                static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
+                static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
+                return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = a.group}, addr_mode_t::Group_NoEP, 0, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(bind_id_addr_t a, Args&&...args)
             {
-                return send_cmd_impl<cmd_out_refl, cfg>({.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, std::forward<Args>(args)...);
+                static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
+                static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
+                return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, std::forward<Args>(args)...);
             }
 
             void init()
@@ -385,8 +388,9 @@ namespace zbm
 
             private:
 
-            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
-            std::optional<cmd_id_t> send_cmd_impl(zb_addr_u addr, addr_mode_t mode, uint8_t dst_ep, Args&&...args)
+            //TOOD: args here must be from the formal declaration of the command, not what user passed
+            template<send_cmd_config_t cfg, class... Args>
+            std::optional<cmd_id_t> send_cmd_impl(cmd_out_a cmd_a, cluster_a clust_a, zb_addr_u addr, addr_mode_t mode, uint8_t dst_ep, Args&&...args)
             {
                 zb_bufid_t b = g_PreAllocBufs.allocate();
                 if (b == ZB_BUF_INVALID)
@@ -394,18 +398,14 @@ namespace zbm
                 issued_cmd_t *pIssued = find_free_issued_cmd_entry();
                 ZB_ASSERT(pIssued);//size of issued array and pre-allocated are the same
                                    //so it must be valid
-                                   
 
-                static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
-                static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
+                auto kTimeout = cfg.timeout_ms == kCmdTimeoutDefault ? cmd_a.timeout_ms : cfg.timeout_ms;
 
-                constexpr auto kTimeout = cfg.timeout_ms == kCmdTimeoutDefault ? cmd_a.timeout_ms : cfg.timeout_ms;
-
-                constexpr uint16_t manu_code = cluster_a.manuf_code != ZB_ZCL_MANUF_CODE_INVALID ? cluster_a.manuf_code : cmd_a.manuf_code;
+                uint16_t manu_code = clust_a.manuf_code != ZB_ZCL_MANUF_CODE_INVALID ? clust_a.manuf_code : cmd_a.manuf_code;
                 frame_ctl_t f{.f{
                     .cluster_specific = true, 
                         .manufacture_specific = manu_code != ZB_ZCL_MANUF_CODE_INVALID
-                            , .direction = cluster_a.role == role_t::Client ? frame_direction_t::ToServer : frame_direction_t::ToClient
+                            , .direction = clust_a.role == role_t::Client ? frame_direction_t::ToServer : frame_direction_t::ToClient
                             , .disable_default_response = false
                 }};
                 ZB_ZCL_GET_SEQ_NUM();
@@ -413,7 +413,7 @@ namespace zbm
                 uint8_t* init = ptr;
                 template for(constexpr size_t i : std::ranges::views::indices(sizeof...(Args)))
                     ptr = *serialize_to(args...[i], ptr, kMaxAllowedArgumentSize - (ptr - init));
-                zb_ret_t ret = zb_zcl_finish_and_send_packet(b, ptr, &addr, (uint8_t)mode/*addr mode*/, dst_ep, epa.ep, ZB_AF_HA_PROFILE_ID, cluster_a.id, on_send_cmd_cb2);
+                zb_ret_t ret = zb_zcl_finish_and_send_packet(b, ptr, &addr, (uint8_t)mode/*addr mode*/, dst_ep, epa.ep, ZB_AF_HA_PROFILE_ID, clust_a.id, on_send_cmd_cb2);
                 if (RET_OK != ret)
                 {
                     g_PreAllocBufs.deallocate(b);
