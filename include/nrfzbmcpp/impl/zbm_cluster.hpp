@@ -73,6 +73,60 @@ namespace zbm
     using global_error_handler_t = void(*)(zb_ret_t r);
     constinit inline global_error_handler_t g_GlobalErrorHandler = nullptr;
 
+
+    template<size_t N_cmd_in, size_t N_cmd_out, bool materialize>
+    struct cmd_list_info_t
+    {
+        zb_uint8_t received_commands[N_cmd_in];
+        zb_uint8_t generated_commands[N_cmd_out];
+
+        zb_discover_cmd_list_t cmd_list =
+        {
+          zb_uint8_t(N_cmd_in), received_commands,
+          zb_uint8_t(N_cmd_out), generated_commands
+        };
+    };
+
+    template<size_t N_cmd_in, size_t N_cmd_out>
+    struct cmd_list_info_t<N_cmd_in, N_cmd_out, false>
+    {
+    };
+
+    template<class cluster_data_type_t>
+    struct cluster_cmd_info_t
+    {
+        static constexpr auto cmd_in_info = std::define_static_array(extract_incoming_commands_from_cluster(^^cluster_data_type_t));
+        static constexpr size_t N_cmd_in = cmd_in_info.size();
+        static constexpr auto cmd_out_info = std::define_static_array(extract_sending_commands_from_cluster(^^cluster_data_type_t));
+        static constexpr size_t N_cmd_out = cmd_out_info.size();
+
+        constexpr cluster_cmd_info_t()
+        {
+            if constexpr (N_cmd_in > 0)
+            {
+                /**********************************************************************/
+                /* incoming commands                                                  */
+                /**********************************************************************/
+                size_t i = 0;
+                template for(constexpr auto a : cmd_in_info)
+                    cmd_info.received_commands[i++] = a.annotation.id; 
+
+                /**********************************************************************/
+                /* outgoing commands                                                  */
+                /**********************************************************************/
+                i = 0;
+                template for(constexpr auto a : cmd_out_info)
+                    cmd_info.generated_commands[i++] = a.annotation.id; 
+            }
+        }
+        [[no_unique_address]] cmd_list_info_t<N_cmd_in, N_cmd_out, (N_cmd_in > 0)> cmd_info;
+    };
+
+
+    //on per cluster type
+    template<class cluster_data_type_t>
+    constinit inline static cluster_cmd_info_t<cluster_data_type_t> cluster_cmd_info_v{};
+
     template<std::meta::info cluster_ref/*reflection of the cluster field reference (reference to an actual object)*/>
     struct cluster_t
     {
@@ -81,10 +135,7 @@ namespace zbm
         static constexpr auto cluster_data_ref_refl = cluster_ref;/*reflection of the cluster field reference (reference to an actual object)*/
         static constexpr auto attributes_info = std::define_static_array(extract_attributes_from_cluster(cluster_ref));
         static constexpr size_t N = attributes_info.size();
-        static constexpr auto cmd_in_info = std::define_static_array(extract_incoming_commands_from_cluster(cluster_ref));
-        static constexpr size_t N_cmd_in = cmd_in_info.size();
-        static constexpr auto cmd_out_info = std::define_static_array(extract_sending_commands_from_cluster(cluster_ref));
-        static constexpr size_t N_cmd_out = cmd_out_info.size();
+        using cmd_info_t = cluster_cmd_info_t<cluster_data_type_t>;
 
 
         consteval static  size_t attributes_want_check()
@@ -98,7 +149,7 @@ namespace zbm
 
         consteval static uint8_t get_handling_needs()
         {
-            return (N_cmd_in > 0) * kNeedsCmdHandler + (attributes_want_check() > 0) * kNeedsValueChecker;
+            return (cmd_info_t::N_cmd_in > 0) * kNeedsCmdHandler + (attributes_want_check() > 0) * kNeedsValueChecker;
         }
 
         consteval static bool has_attribute(std::meta::info user_attr_mem)
@@ -120,50 +171,27 @@ namespace zbm
                 }
             },
             rev(g_ClusterA.rev)
+        {
+
+            /**********************************************************************/
+            /* attributes                                                         */
+            /**********************************************************************/
+            size_t i = 1;
+            template for(constexpr auto a : attributes_info)
             {
-
-                /**********************************************************************/
-                /* attributes                                                         */
-                /**********************************************************************/
-                size_t i = 1;
-                template for(constexpr auto a : attributes_info)
-                {
-                    attributes[i++] = zb_zcl_attr_t{
-                        .id = a.annotation.id, 
-                            .type = (zb_uint8_t)a.annotation.type, 
-                            .access = (zb_uint8_t)a.annotation.a, 
-                            .manuf_code = ZB_ZCL_NON_MANUFACTURER_SPECIFIC, 
-                            .data_p = &[:cluster_ref:].[:a.attribute:]
-                    };
-                }
-                attributes[N + 1] = g_LastAttribute;
-
-                /**********************************************************************/
-                /* incoming commands                                                  */
-                /**********************************************************************/
-                i = 0;
-                template for(constexpr auto a : cmd_in_info)
-                    received_commands[i++] = a.annotation.id; 
-
-                /**********************************************************************/
-                /* outgoing commands                                                  */
-                /**********************************************************************/
-                i = 0;
-                template for(constexpr auto a : cmd_out_info)
-                    generated_commands[i++] = a.annotation.id; 
+                attributes[i++] = zb_zcl_attr_t{
+                    .id = a.annotation.id, 
+                        .type = (zb_uint8_t)a.annotation.type, 
+                        .access = (zb_uint8_t)a.annotation.a, 
+                        .manuf_code = ZB_ZCL_NON_MANUFACTURER_SPECIFIC, 
+                        .data_p = &[:cluster_ref:].[:a.attribute:]
+                };
             }
+            attributes[N + 1] = g_LastAttribute;
+        }
 
         alignas(4) zb_zcl_attr_t attributes[N + 2];
         zb_uint16_t rev;
-
-        zb_uint8_t received_commands[N_cmd_in];
-        zb_uint8_t generated_commands[N_cmd_out];
-
-        zb_discover_cmd_list_t cmd_list =
-        {
-          zb_uint8_t(N_cmd_in), received_commands,
-          zb_uint8_t(N_cmd_out), generated_commands
-        };
     };
 
     template<std::meta::info ep_ref>
@@ -333,7 +361,7 @@ namespace zbm
 
         if ( ZB_ZCL_GENERAL_GET_CMD_LISTS_PARAM == param )
         {
-            ZCL_CTX().zb_zcl_cluster_cmd_list = &[:cluster_ref:].cmd_list;
+            ZCL_CTX().zb_zcl_cluster_cmd_list = &cluster_cmd_info_v<typename cluster_desc_t::cluster_data_type_t>.cmd_info.cmd_list;
             return ZB_TRUE;
         }
 
@@ -360,13 +388,12 @@ namespace zbm
             }
         }else
         {
-            using cluster_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_ref)):];
-            template for (constexpr auto cmdInfo : cluster_t::cmd_in_info)
+            template for (constexpr auto cmdInfo : cluster_desc_t::cmd_info_t::cmd_in_info)
             {
                 if (cmdInfo.annotation.id == cmd_info->cmd_id)
                 {
                     //call that command
-                    r = call_cmd<cluster_t::cluster_data_ref_refl, cmdInfo>(cmd_info, std::span<uint8_t>{(uint8_t*)zb_buf_begin(param), zb_buf_len(param)});
+                    r = call_cmd<cluster_desc_t::cluster_data_ref_refl, cmdInfo>(cmd_info, std::span<uint8_t>{(uint8_t*)zb_buf_begin(param), zb_buf_len(param)});
                     break;
                 }
             }
@@ -440,7 +467,7 @@ namespace zbm
         zb_zcl_cluster_check_value_t check_val = nullptr;
         zb_zcl_cluster_write_attr_hook_t write_hook = nullptr;
         zb_zcl_cluster_handler_t cmd_handler = nullptr;
-        if constexpr (cluster_desc_t::N_cmd_in > 0)
+        if constexpr (cluster_desc_t::cmd_info_t::N_cmd_in > 0)
             cmd_handler = &on_cluster_cmd_handling<cluster_r, ep, addHandlingDepth>;
 
         constexpr size_t attributes_want_check = cluster_desc_t::attributes_want_check();

@@ -287,7 +287,9 @@ namespace zbm
     consteval std::vector<cmd_in_with_annotation> extract_incoming_commands_from_cluster(std::meta::info cluster)
     {
         ep_base_cfg_t res;
-        std::meta::info cluster_type = std::meta::remove_cvref(std::meta::type_of(cluster));
+        std::meta::info cluster_type = cluster;
+        if (!std::meta::is_type(cluster_type))
+            cluster_type = std::meta::remove_cvref(std::meta::type_of(cluster_type));
         auto mems = refl::nsdms_with_parents(cluster_type);
         std::vector<cmd_in_with_annotation> cmds;
         for(auto mem_attr : mems)
@@ -307,7 +309,9 @@ namespace zbm
     consteval std::vector<cmd_out_with_annotation> extract_sending_commands_from_cluster(std::meta::info cluster)
     {
         ep_base_cfg_t res;
-        std::meta::info cluster_type = std::meta::remove_cvref(std::meta::type_of(cluster));
+        std::meta::info cluster_type = cluster;
+        if (!std::meta::is_type(cluster_type))
+            cluster_type = std::meta::remove_cvref(std::meta::type_of(cluster_type));
         auto mems = refl::nsdms_with_parents(cluster_type);
         std::vector<cmd_out_with_annotation> cmds;
         for(auto mem_attr : mems)
