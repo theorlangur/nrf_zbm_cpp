@@ -23,7 +23,7 @@ namespace zbm
             zb_uint16_t remaining_time{};
 
             [[=cmd_in_a{{.id = ZB_ZCL_CMD_LEVEL_CONTROL_MOVE_TO_LEVEL}}]]
-            void(*on_move_to_level)(uint8_t level, uint16_t trans_time, uint8_t opts_mask, uint8_t opts_override)> = {};
+            void(*on_move_to_level)(uint8_t level, uint16_t trans_time, uint8_t opts_mask, uint8_t opts_override) = {};
 
             [[=cmd_in_a{{.id = ZB_ZCL_CMD_LEVEL_CONTROL_MOVE}}]]
             void(*on_move)(fade_mode_e, uint8_t rate, uint8_t opts_mask, uint8_t opts_override) = {};
