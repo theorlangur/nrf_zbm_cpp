@@ -6,6 +6,14 @@
 
 namespace zbm
 {
+    template<std::meta::info cluster_r>
+    consteval bool cluster_needs_init()
+    {
+        using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_r)):];
+        constexpr auto i = cluster_desc_t::g_ClusterA;
+        return i.pre_init || (cluster_desc_t::cmd_info_t::N_cmd_in > 0) || (cluster_desc_t::attributes_want_check() > 0);
+    }
+
     struct additional_cluster_handlers_base_t
     {
         uint8_t ep=0xff;

@@ -148,13 +148,16 @@ namespace zbm
                 static constexpr auto cluster_refl = std::meta::reflect_object([:local_clusters_r:].[:m:]);//cluster_t &
                 static constexpr auto cluster_desc_refl = std::meta::remove_cvref(std::meta::type_of(cluster_refl));
                 using cluster_desc_t = typename [:cluster_desc_refl:];
+                static constexpr auto cluster_init_func = cluster_needs_init<cluster_refl>() ? 
+                    &generic_cluster_init<cluster_refl, ep_id, get_add_depth_for_cluster(add_handlers_per_cluster, cluster_desc_t::g_ClusterA.id, cluster_desc_t::g_ClusterA.role, 0)>
+                    : nullptr;
                 clusters_descriptions[i] = zb_zcl_cluster_desc_t{
                     .cluster_id = ca.annotation.id,
                     .attr_count = std::size([:local_clusters_r:].[:m:].attributes),
                     .attr_desc_list = [:local_clusters_r:].[:m:].attributes,
                     .role_mask = (zb_uint8_t)ca.annotation.role,
                     .manuf_code = ca.annotation.manuf_code,
-                    .cluster_init = &generic_cluster_init<cluster_refl, ep_id, get_add_depth_for_cluster(add_handlers_per_cluster, cluster_desc_t::g_ClusterA.id, cluster_desc_t::g_ClusterA.role, 0)>
+                    .cluster_init = cluster_init_func
                 };
                 ++i;
             }
