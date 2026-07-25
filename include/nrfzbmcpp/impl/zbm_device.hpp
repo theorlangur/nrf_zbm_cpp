@@ -65,35 +65,6 @@ namespace zbm
         return res;
     }
 
-    template<std::meta::info dev_data_ref>
-    struct device_factory_t
-    {
-        static constexpr auto ep_info_list = define_static_array(extract_ep_from_device(dev_data_ref));
-        static constexpr auto global_info_list = define_static_array(analyze_global_cluster_info(ep_info_list));
-        static constexpr auto global_info_list_array = get_global_cluster_info_as_array<global_info_list.size()>(ep_info_list); 
-
-        /*
-         * struct device_t
-         * {
-             ep_create_t<>::ep_type_t &ep_01;//1 EP ID
-             ep_create_t<>::ep_type_t &ep_02;//2 EP ID
-         * };
-         * */
-        struct device_t;
-        consteval{
-            std::vector<std::meta::info> mems;
-            template for(constexpr auto ei : ep_info_list)
-            {
-                constexpr auto nsdm_ep_mem = std::meta::reflect_object([:dev_data_ref:].[:ei.ep:]);
-                constexpr auto ep_create_inst_t = std::meta::substitute(^^ep_create_t, {std::meta::reflect_constant(ei.ep), std::meta::reflect_constant(nsdm_ep_mem), std::meta::reflect_constant(global_info_list_array)});
-                using ep_end_type_t = typename [:ep_create_inst_t:]::ep_front_t;
-                constexpr auto ep_ref = std::meta::add_lvalue_reference(^^ep_end_type_t);
-                mems.push_back(std::meta::data_member_spec(ep_ref, std::meta::data_member_options{.name = refl::name_with_hex<2>("ep_", ei.annotation.ep)}));
-            }
-            std::meta::define_aggregate(^^device_t, mems);
-        };
-    };
-
     struct ep_refl_info
     {
         std::meta::info mem_decl;
@@ -110,11 +81,16 @@ namespace zbm
     }
 
     template<std::meta::info dev_data_ref>
-    struct device_full_t: device_factory_t<dev_data_ref>::device_t
+    struct device_full_t
     {
-        using factory_t = device_factory_t<dev_data_ref>;
-        using base_t = factory_t::device_t;
+        static constexpr auto ep_info_list = define_static_array(extract_ep_from_device(dev_data_ref));
+        static constexpr auto global_info_list = define_static_array(analyze_global_cluster_info(ep_info_list));
+        static constexpr auto global_info_list_array = get_global_cluster_info_as_array<global_info_list.size()>(ep_info_list); 
         static constexpr auto ep_list = get_all_ep_ref<dev_data_ref>();
+
+        template<size_t I>
+        using ep_storage_t = ep_create_t<ep_list[I].mem_decl, ep_list[I].obj_ref, global_info_list_array>;
+
         constexpr device_full_t():
             device_full_t(std::make_index_sequence<ep_list.size()>{})
         {
@@ -128,7 +104,7 @@ namespace zbm
             {
                 constexpr auto ep_a = try_get_ep_annotation(ep_list[i].mem_decl);
                 if constexpr (ep_a)
-                    ep_create_t<ep_list[i].mem_decl, ep_list[i].obj_ref, factory_t::global_info_list_array>::value.init();
+                    ep_storage_t<i>::value.init();
             }
         }
 
@@ -141,18 +117,15 @@ namespace zbm
                 if constexpr (ep_a)
                 {
                     if constexpr (ep_a->ep == EP)
-                        return ep_create_t<ep_list[i].mem_decl, ep_list[i].obj_ref, factory_t::global_info_list_array>::value;
+                        return ep_storage_t<i>::value;
                 }
             }
         }
     protected:
         template<size_t... I>
         constexpr device_full_t(std::index_sequence<I...>):
-            base_t{
-                ep_create_t<ep_list[I].mem_decl, ep_list[I].obj_ref, factory_t::global_info_list_array>::value...
-            },
             endpoints{
-                &ep_create_t<ep_list[I].mem_decl, ep_list[I].obj_ref, factory_t::global_info_list_array>::value.ep_data.ep...
+                &ep_storage_t<I>::value.ep_data.ep...
             },
             ctx{
                 .ep_count = ep_list.size(),
