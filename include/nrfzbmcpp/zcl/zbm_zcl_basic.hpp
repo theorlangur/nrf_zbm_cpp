@@ -8,7 +8,7 @@ namespace zbm
     namespace zcl
     {
         struct 
-            [[=cluster_a{.id = ZB_ZCL_CLUSTER_ID_BASIC, .pre_init = ZB_ZCL_CLUSTER_ID_BASIC_SERVER_ROLE_INIT}]]
+            [[=cluster_a{.id = ZB_ZCL_CLUSTER_ID_BASIC}]]
             basic_min_t
         {
             enum PowerSource: zb_uint8_t
@@ -34,6 +34,9 @@ namespace zbm
 
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_POWER_SOURCE_ID}]]
             PowerSource power_source{PowerSource::Unknown};
+
+            [[=cmd_in_a{ZB_ZCL_CMD_BASIC_RESET_ID}]]
+            cmd_handling_result_t(*on_reset)();
         };
 
         struct basic_names_t: basic_min_t
@@ -67,6 +70,14 @@ namespace zbm
 
             [[=attribute_a{.id = ZB_ZCL_ATTR_BASIC_SW_BUILD_ID}]]
             str_t<17>  sw_ver{};
+        };
+
+        struct 
+            [[=cluster_a{.id = ZB_ZCL_CLUSTER_ID_BASIC, .role=role_t::Client}]]
+            basic_client_t
+        {
+            [[=cmd_out_a{ZB_ZCL_CMD_BASIC_RESET_ID}]]
+            [[no_unique_address]]cmd_out_t<void()> reset;
         };
     }
 }

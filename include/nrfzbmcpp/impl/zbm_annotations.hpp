@@ -15,6 +15,7 @@ namespace zbm
         access_t a = access_t::Read;
         type_t type = type_t::Invalid;//infer from type
         value_checker_t validator = {};                     
+        //TODO: automatic value checker for enums
 
         constexpr inline bool has_access(access_t _a) const { return a & _a; } 
         constexpr inline bool is_cvc() const { 

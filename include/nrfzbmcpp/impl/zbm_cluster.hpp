@@ -478,6 +478,7 @@ namespace zbm
         return RET_OK;
     }
 
+    //TODO: ep_mem_refl instead of ep, and infer ep from annotation of ep_mem_refl
     template<std::meta::info cluster_r, uint8_t ep, uint8_t addHandlingDepth>
     void generic_cluster_init()
     {
