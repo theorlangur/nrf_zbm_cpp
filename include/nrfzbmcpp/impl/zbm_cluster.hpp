@@ -6,12 +6,12 @@
 
 namespace zbm
 {
-    template<std::meta::info cluster_r>
+    template<std::meta::info cluster_r, std::meta::info ep_mem_decl>
     consteval bool cluster_needs_init()
     {
         using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_r)):];
         constexpr auto i = cluster_desc_t::g_ClusterA;
-        return i.pre_init || (cluster_desc_t::cmd_info_t::N_cmd_in > 0) || (cluster_desc_t::attributes_want_check() > 0);
+        return i.pre_init || cluster_desc_t::template has_any_cmd_in_initialized<ep_mem_decl>() || (cluster_desc_t::attributes_want_check() > 0);
     }
 
     struct additional_cluster_handlers_base_t
@@ -135,7 +135,7 @@ namespace zbm
     template<class cluster_data_type_t>
     constinit inline static cluster_cmd_info_t<cluster_data_type_t> cluster_cmd_info_v{};
 
-    template<std::meta::info cluster_ref/*reflection of the cluster field reference (reference to an actual object)*/>
+    template<std::meta::info cluster_ref/*reflection of the cluster field reference (reference to an actual object)*/, std::meta::info cluster_mem>
     struct cluster_t
     {
         using cluster_data_type_t = [: []() consteval{ return std::meta::remove_cvref(std::meta::type_of(cluster_ref)); }() :];
@@ -145,6 +145,20 @@ namespace zbm
         static constexpr size_t N = attributes_info.size();
         using cmd_info_t = cluster_cmd_info_t<cluster_data_type_t>;
 
+        template<std::meta::info ep_mem_decl, typename Dummy=void>
+        consteval static bool has_any_cmd_in_initialized()
+        {
+            if constexpr (has_const_device_initializer<Dummy>())
+            {
+                template for(constexpr auto ci : cmd_info_t::cmd_in_info)
+                {
+                    if (get_const_device_initializer<Dummy>().[:ep_mem_decl:].[:cluster_mem:].[:ci.cmd:])
+                        return true;
+                }
+                return false;
+            }else
+                return cmd_info_t::N_cmd_in > 0;
+        }
 
         consteval static  size_t attributes_want_check()
         {
@@ -224,7 +238,7 @@ namespace zbm
                 static_assert(verify_member_in_cluster<zbm::attribute_a>(std::meta::type_of(ci.cluster)) == std::meta::info{}, "Found duplicate attribute in cluster definition");
                 static_assert(verify_member_in_cluster<zbm::cmd_in_a>(std::meta::type_of(ci.cluster)) == std::meta::info{}, "Found duplicate incomming command in cluster definition");
                 static_assert(verify_member_in_cluster<zbm::cmd_out_a>(std::meta::type_of(ci.cluster)) == std::meta::info{}, "Found duplicate outgoing command in cluster definition");
-                auto c_ref = std::meta::substitute(^^cluster_t, {std::meta::reflect_constant(std::meta::reflect_object([:ep_ref:].[:ci.cluster:]))});
+                auto c_ref = std::meta::substitute(^^cluster_t, {std::meta::reflect_constant(std::meta::reflect_object([:ep_ref:].[:ci.cluster:])), std::meta::reflect_constant(ci.cluster)});
                 const auto &field_prefix = ci.annotation.role == role_t::Server ? server_prefix : client_prefix;
                 mems.push_back(std::meta::data_member_spec(
                                 c_ref, 

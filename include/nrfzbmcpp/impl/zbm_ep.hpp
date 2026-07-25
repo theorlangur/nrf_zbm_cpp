@@ -86,7 +86,7 @@ namespace zbm
         return default_depth;
     }
 
-    template<ep_base_cfg_t cfg, uint8_t ep_id>
+    template<ep_base_cfg_t cfg, uint8_t ep_id, std::meta::info ep_mem_decl>
     struct ep_base_t
     {
         using SimpleDesc = simple_desc_t<cfg.server_clusters, cfg.client_clusters>;
@@ -148,7 +148,7 @@ namespace zbm
                 static constexpr auto cluster_refl = std::meta::reflect_object([:local_clusters_r:].[:m:]);//cluster_t &
                 static constexpr auto cluster_desc_refl = std::meta::remove_cvref(std::meta::type_of(cluster_refl));
                 using cluster_desc_t = typename [:cluster_desc_refl:];
-                static constexpr auto cluster_init_func = cluster_needs_init<cluster_refl>() ? 
+                static constexpr auto cluster_init_func = cluster_needs_init<cluster_refl, ep_mem_decl>() ? 
                     &generic_cluster_init<cluster_refl, ep_id, get_add_depth_for_cluster(add_handlers_per_cluster, cluster_desc_t::g_ClusterA.id, cluster_desc_t::g_ClusterA.role, 0)>
                     : nullptr;
                 clusters_descriptions[i] = zb_zcl_cluster_desc_t{
@@ -198,7 +198,7 @@ namespace zbm
             if (!cluster_types.empty())
             {
                 ep_base_cfg_t cfg = analyze_clusters(cluster_types);
-                auto ep_data_type = std::meta::substitute(^^ep_base_t, {std::meta::reflect_constant(cfg), std::meta::reflect_constant(g_Annotation.ep)});
+                auto ep_data_type = std::meta::substitute(^^ep_base_t, {std::meta::reflect_constant(cfg), std::meta::reflect_constant(g_Annotation.ep), std::meta::reflect_constant(ep_mem_decl)});
                 std::meta::define_aggregate(^^ep_t, {
                         std::meta::data_member_spec(ep_data_type, std::meta::data_member_options{"ep_data"})
                         });
