@@ -121,6 +121,20 @@ namespace zbm
                 }
             }
         }
+
+        template<uint8_t EP>
+        constexpr auto& clusters()
+        {
+            template for(constexpr size_t i : std::ranges::views::indices(ep_list.size()))
+            {
+                constexpr auto ep_a = try_get_ep_annotation(ep_list[i].mem_decl);
+                if constexpr (ep_a)
+                {
+                    if constexpr (ep_a->ep == EP)
+                        return ep_storage_t<i>::clusters;
+                }
+            }
+        }
     protected:
         template<size_t... I>
         constexpr device_full_t(std::index_sequence<I...>):
