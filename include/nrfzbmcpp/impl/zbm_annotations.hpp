@@ -140,10 +140,24 @@ namespace zbm
     }
 
     template<class T>
+    zb_ret_t enum_attribute_validator(zb_uint8_t *value)
+    {
+        static_assert(std::is_enum_v<T>, "Only enum types are expected here");
+        static_assert(sizeof(T) <= 2, "Not bigger than 16 bits");
+        T *v = reinterpret_cast<T*>(value);
+        //should check if value is one of the defined enum values
+        template for(constexpr auto e : std::define_static_array(std::meta::enumerators_of(^^T)))
+            if ([:e:] == *v) return RET_OK;
+        return RET_OUT_OF_RANGE;
+    }
+
+    template<class T>
     consteval attribute_a::value_checker_t get_attribute_validator_for_type()
     {
         if constexpr (validatable_c<T>)
             return &T::validate_value;
+        else if constexpr (std::is_enum_v<T>)
+            return &enum_attribute_validator<T>;
         else
             return {};
     }
