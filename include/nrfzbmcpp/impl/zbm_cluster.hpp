@@ -478,10 +478,10 @@ namespace zbm
         return RET_OK;
     }
 
-    //TODO: ep_mem_refl instead of ep, and infer ep from annotation of ep_mem_refl
-    template<std::meta::info cluster_r, uint8_t ep, uint8_t addHandlingDepth>
+    template<std::meta::info cluster_r, std::meta::info ep_mem_refl, uint8_t addHandlingDepth>
     void generic_cluster_init()
     {
+        static constexpr uint8_t ep = (*try_get_ep_annotation(ep_mem_refl)).ep;
         using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_r)):];
         constexpr auto i = cluster_desc_t::g_ClusterA;
         if constexpr (i.pre_init)
@@ -490,7 +490,7 @@ namespace zbm
         zb_zcl_cluster_check_value_t check_val = nullptr;
         zb_zcl_cluster_write_attr_hook_t write_hook = nullptr;
         zb_zcl_cluster_handler_t cmd_handler = nullptr;
-        if constexpr (cluster_desc_t::cmd_info_t::N_cmd_in > 0)
+        if constexpr (cluster_desc_t::template has_any_cmd_in_initialized<ep_mem_refl>() > 0)
             cmd_handler = &on_cluster_cmd_handling<cluster_r, ep, addHandlingDepth>;
 
         constexpr size_t attributes_want_check = cluster_desc_t::attributes_want_check();
