@@ -342,51 +342,71 @@ namespace zbm
                 uint32_t timeout_ms = kCmdTimeoutDefault;
             };
 
+            //returns a reflection of the concrete instantiation of the send_cmd_impl with parameters from cmd_t
+            template<class cmd_t, send_cmd_config_t cfg>
+            consteval static std::meta::info inject_cmd_params()
+            {
+                constexpr size_t param_count = cmd_t::g_Params.size();
+                return [&]<size_t... Is>(std::index_sequence<Is...>) consteval {
+                    return ^^send_cmd_impl<cfg, typename [:std::meta::type_of(cmd_t::g_Params[Is]):]...>;
+                }(std::make_index_sequence<param_count>{});
+            }
+
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args> requires (!is_zb_addr_type_c<Args> && ...)
             std::optional<cmd_id_t> send_cmd(Args&&...args)
             {
-                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
+                using mem_t = refl::mem_ptr_traits<decltype(&[:cmd_out_refl:])>::MemberType;
+                static_assert(mem_t::g_ParamsTotalSize <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
-                return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::NoAddr_NoEP, 0, std::forward<Args>(args)...);
+                static constexpr auto send_cmd_impl_refl = inject_cmd_params<mem_t, cfg>();
+                return [:send_cmd_impl_refl:](cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::NoAddr_NoEP, 0, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(short_addr_t a, Args&&...args)
             {
-                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
+                using mem_t = refl::mem_ptr_traits<decltype(&[:cmd_out_refl:])>::MemberType;
+                static_assert(mem_t::g_ParamsTotalSize <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
-                return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = a.short_addr}, addr_mode_t::Dst16EP, a.ep, std::forward<Args>(args)...);
+                static constexpr auto send_cmd_impl_refl = inject_cmd_params<mem_t, cfg>();
+                return [:send_cmd_impl_refl:](cmd_a, cluster_a, {.addr_short = a.short_addr}, addr_mode_t::Dst16EP, a.ep, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(long_addr_t a, Args&&...args)
             {
-                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
+                using mem_t = refl::mem_ptr_traits<decltype(&[:cmd_out_refl:])>::MemberType;
+                static_assert(mem_t::g_ParamsTotalSize <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
+                static constexpr auto send_cmd_impl_refl = inject_cmd_params<mem_t, cfg>();
                 zb_addr_u addr;
                 std::memcpy(addr.addr_long, a.long_addr, sizeof(a.long_addr));
-                return send_cmd_impl<cfg>(cmd_a, cluster_a, addr, addr_mode_t::Dst64EP, a.ep, std::forward<Args>(args)...);
+                return [:send_cmd_impl_refl:](cmd_a, cluster_a, addr, addr_mode_t::Dst64EP, a.ep, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(group_addr_t a, Args&&...args)
             {
-                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
+                using mem_t = refl::mem_ptr_traits<decltype(&[:cmd_out_refl:])>::MemberType;
+                static_assert(mem_t::g_ParamsTotalSize <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
-                return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = a.group}, addr_mode_t::Group_NoEP, 0, std::forward<Args>(args)...);
+                static constexpr auto send_cmd_impl_refl = inject_cmd_params<mem_t, cfg>();
+                return [:send_cmd_impl_refl:](cmd_a, cluster_a, {.addr_short = a.group}, addr_mode_t::Group_NoEP, 0, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(bind_id_addr_t a, Args&&...args)
             {
-                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
+                using mem_t = refl::mem_ptr_traits<decltype(&[:cmd_out_refl:])>::MemberType;
+                static_assert(mem_t::g_ParamsTotalSize <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
-                return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, std::forward<Args>(args)...);
+                static constexpr auto send_cmd_impl_refl = inject_cmd_params<mem_t, cfg>();
+                return [:send_cmd_impl_refl:](cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, std::forward<Args>(args)...);
             }
 
             void init()
@@ -395,14 +415,7 @@ namespace zbm
             }
 
             private:
-            template<std::meta::info cmd_out_refl>
-            static consteval size_t total_arg_size_for_cmd()
-            {
-                using mem_t = refl::mem_ptr_traits<decltype(&[:cmd_out_refl:])>::MemberType;
-                return mem_t::g_ParamsTotalSize;
-            }
 
-            //TODO: args here must be from the formal declaration of the command, not what user passed
             template<send_cmd_config_t cfg, class... Args>
             std::optional<cmd_id_t> send_cmd_impl(cmd_out_a cmd_a, cluster_a clust_a, zb_addr_u addr, addr_mode_t mode, uint8_t dst_ep, Args&&...args)
             {
