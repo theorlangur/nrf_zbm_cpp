@@ -110,9 +110,15 @@ namespace zbm
         }
     }
 
-    template<sig_handlers_t... handlers>
+    template<auto &zb_ctx, sig_handlers_t... handlers>
     zb_ret_t tpl_signal_handler(zb_bufid_t bufid)
     {
+        static bool ctx_initialized = false;
+        if (!ctx_initialized)
+        {
+            ctx_initialized = true;
+            zb_ctx.init();
+        }
         buf_ptr_t b{bufid};
         zb_zdo_app_signal_hdr_t *pHdr;
         auto signalId = zb_get_app_signal(bufid, &pHdr);
