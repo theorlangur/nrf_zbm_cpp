@@ -255,7 +255,7 @@ namespace zbm
                 return nullptr;
             }
 
-            static void on_send_cmd_timeout2(zb_bufid_t buf)
+            static void on_send_cmd_timeout(zb_bufid_t buf)
             {
                 for(auto &cmd : g_IssuedCmds)
                 {
@@ -270,13 +270,13 @@ namespace zbm
                 ZB_ASSERT(false);
             }
 
-            static void on_send_cmd_cb2(zb_uint8_t buf)
+            static void on_send_cmd_cb(zb_uint8_t buf)
             {
                 for(auto &cmd : g_IssuedCmds)
                 {
                     if (cmd.buf == buf)
                     {
-                        zb_schedule_alarm_cancel(on_send_cmd_cb2, buf, nullptr);
+                        zb_schedule_alarm_cancel(on_send_cmd_timeout, buf, nullptr);
                         zb_zcl_command_send_status_t *cmd_send_status = buf ? ZB_BUF_GET_PARAM(buf, zb_zcl_command_send_status_t) : nullptr;
                         g_PreAllocBufs.deallocate(cmd.buf);//cmd_send_status memory is still valid
                         cmd.buf = ZB_BUF_INVALID;
@@ -342,17 +342,19 @@ namespace zbm
                 uint32_t timeout_ms = kCmdTimeoutDefault;
             };
 
-            template<std::meta::info cmd_out_ref, send_cmd_config_t cfg={}, class... Args> requires (!is_zb_addr_type_c<Args> && ...)
+            template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args> requires (!is_zb_addr_type_c<Args> && ...)
             std::optional<cmd_id_t> send_cmd(Args&&...args)
             {
-                static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_ref);
-                static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_ref);
+                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
+                static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
+                static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
                 return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::NoAddr_NoEP, 0, std::forward<Args>(args)...);
             }
 
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(short_addr_t a, Args&&...args)
             {
+                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
                 return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = a.short_addr}, addr_mode_t::Dst16EP, a.ep, std::forward<Args>(args)...);
@@ -361,6 +363,7 @@ namespace zbm
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(long_addr_t a, Args&&...args)
             {
+                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
                 zb_addr_u addr;
@@ -371,6 +374,7 @@ namespace zbm
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(group_addr_t a, Args&&...args)
             {
+                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
                 return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = a.group}, addr_mode_t::Group_NoEP, 0, std::forward<Args>(args)...);
@@ -379,6 +383,7 @@ namespace zbm
             template<std::meta::info cmd_out_refl, send_cmd_config_t cfg={}, class... Args>
             std::optional<cmd_id_t> send_cmd(bind_id_addr_t a, Args&&...args)
             {
+                static_assert(total_arg_size_for_cmd<cmd_out_refl>() <= kMaxAllowedArgumentSize, "Too many arguments or arguments are too big");
                 static constexpr auto cmd_a = *get_sending_command_annotation(cmd_out_refl);
                 static constexpr auto cluster_a = *get_parent_cluster_annotation(cmd_out_refl);
                 return send_cmd_impl<cfg>(cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, std::forward<Args>(args)...);
@@ -390,8 +395,14 @@ namespace zbm
             }
 
             private:
+            template<std::meta::info cmd_out_refl>
+            static consteval size_t total_arg_size_for_cmd()
+            {
+                using mem_t = refl::mem_ptr_traits<decltype(&[:cmd_out_refl:])>::MemberType;
+                return mem_t::g_ParamsTotalSize;
+            }
 
-            //TOOD: args here must be from the formal declaration of the command, not what user passed
+            //TODO: args here must be from the formal declaration of the command, not what user passed
             template<send_cmd_config_t cfg, class... Args>
             std::optional<cmd_id_t> send_cmd_impl(cmd_out_a cmd_a, cluster_a clust_a, zb_addr_u addr, addr_mode_t mode, uint8_t dst_ep, Args&&...args)
             {
@@ -416,7 +427,7 @@ namespace zbm
                 uint8_t* init = ptr;
                 template for(constexpr size_t i : std::ranges::views::indices(sizeof...(Args)))
                     ptr = *serialize_to(args...[i], ptr, kMaxAllowedArgumentSize - (ptr - init));
-                zb_ret_t ret = zb_zcl_finish_and_send_packet(b, ptr, &addr, (uint8_t)mode/*addr mode*/, dst_ep, epa.ep, ZB_AF_HA_PROFILE_ID, clust_a.id, on_send_cmd_cb2);
+                zb_ret_t ret = zb_zcl_finish_and_send_packet(b, ptr, &addr, (uint8_t)mode/*addr mode*/, dst_ep, epa.ep, ZB_AF_HA_PROFILE_ID, clust_a.id, on_send_cmd_cb);
                 if (RET_OK != ret)
                 {
                     g_PreAllocBufs.deallocate(b);
@@ -428,7 +439,7 @@ namespace zbm
                     pIssued->buf = b;
                     pIssued->cb = cfg.cb;
                     pIssued->cmd_id = g_cmd_num;
-                    if (zb_schedule_app_alarm(on_send_cmd_timeout2, b, ZB_MILLISECONDS_TO_BEACON_INTERVAL(kTimeout)) != RET_OK)
+                    if (zb_schedule_app_alarm(on_send_cmd_timeout, b, ZB_MILLISECONDS_TO_BEACON_INTERVAL(kTimeout)) != RET_OK)
                     {
                         pIssued->buf = ZB_BUF_INVALID;
                         g_PreAllocBufs.deallocate(b);
