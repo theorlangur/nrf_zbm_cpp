@@ -2,6 +2,8 @@
 #define ZB_META_CLUSTER_HPP_
 
 #include "zbm_types.hpp"
+#include "zbm_serialize.hpp"
+#include "zbm_device_const_init.hpp"
 #include "zbm_annotations.hpp"
 
 namespace zbm

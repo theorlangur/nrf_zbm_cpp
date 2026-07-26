@@ -2,6 +2,7 @@
 #define ZB_META_ANNOTATIONS_HPP_
 
 #include "zbm_types.hpp"
+#include "zbm_serialize.hpp"
 #include <flat_set>
 #include <algorithm>
 
