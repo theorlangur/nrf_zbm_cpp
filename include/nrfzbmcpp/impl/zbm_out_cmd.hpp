@@ -19,7 +19,7 @@ namespace zbm
         static constexpr size_t g_ParamsTotalSize = []() consteval -> size_t{
             size_t r = 0;
             for(auto p : g_Params)
-                r += std::meta::size_of(std::meta::type_of(p));
+                r += std::meta::size_of(p);
             return r;
         }();
 

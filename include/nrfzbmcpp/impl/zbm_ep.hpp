@@ -348,7 +348,7 @@ namespace zbm
             {
                 constexpr size_t param_count = cmd_t::g_Params.size();
                 return [&]<size_t... Is>(std::index_sequence<Is...>) consteval {
-                    return ^^send_cmd_impl<cfg, typename [:std::meta::type_of(cmd_t::g_Params[Is]):]...>;
+                    return ^^send_cmd_impl<cfg, typename [:cmd_t::g_Params[Is]:]...>;
                 }(std::make_index_sequence<param_count>{});
             }
 
