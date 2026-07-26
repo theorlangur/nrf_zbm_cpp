@@ -22,39 +22,43 @@ namespace zbm
         /* Cluster definitions                                                */
         /**********************************************************************/
 
+        //TODO: make a non-legacy version, not depending on ZB_ZCL_CLUSTER_ID_POLL_CONTROL_SERVER_ROLE_INIT
+        //with all necessary commands received/generated
         static constexpr uint16_t kZB_ZCL_CLUSTER_ID_POLL_CTRL = 0x0020;
         struct 
-            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL}]]
+            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .pre_init=ZB_ZCL_CLUSTER_ID_POLL_CONTROL_SERVER_ROLE_INIT}]]
             poll_ctrl_basic_t
         {
-            [[=attribute_a{.id = 0, .a = access_t::RW}]]
+            [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_CHECKIN_INTERVAL_ID, .a = access_t::RW}]]
             uint32_t check_in_interval = 1_h_to_qs;//1h
                                                    //
-            [[=attribute_a{.id = 1}]]
+            [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_LONG_POLL_INTERVAL_ID}]]
             uint32_t long_poll_interval = 5_sec_to_qs;//5sec
 
-            [[=attribute_a{.id = 2}]]
+            [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_SHORT_POLL_INTERVAL_ID}]]
             uint16_t short_poll_interval = 2;//2quater-sec
 
-            [[=attribute_a{.id = 3, .a = access_t::RW}]]
+            [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_FAST_POLL_TIMEOUT_ID, .a = access_t::RW}]]
             uint16_t fast_poll_timeout = 10_sec_to_qs;//10sec
 
-            [[=attribute_a{.id = 0xeffeU, .a = access_t::Internal, .type=type_t::Null}]]
+            [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_ADDR_DATA_ID, .a = access_t::Internal, .type=type_t::Null}]]
             zb_zcl_poll_control_srv_cfg_data_t srv_cfg = 
             { ZB_ZCL_POLL_CTRL_INVALID_ADDR, ZB_ZCL_POLL_INVALID_EP, 0, 0 };
         };
 
         struct poll_ctrl_t: poll_ctrl_basic_t
         {
-            [[=attribute_a{.id = 4}]]
+            [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_MIN_CHECKIN_INTERVAL_ID}]]
             uint32_t check_in_interval_min = 0;
 
-            [[=attribute_a{.id = 5}]]
+            [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_LONG_POLL_MIN_INTERVAL_ID}]]
             uint32_t long_poll_interval_min = 0;
 
-            [[=attribute_a{.id = 6}]]
+            [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_FAST_POLL_MAX_TIMEOUT_ID}]]
             uint16_t fast_poll_timeout_max = 0;
         };
+
+        //TODO: add a client counterpart
 
 
         /**********************************************************************/
