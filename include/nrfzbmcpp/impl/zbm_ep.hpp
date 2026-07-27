@@ -290,8 +290,15 @@ namespace zbm
             /**********************************************************************/
             /* Attribute Set                                                      */
             /**********************************************************************/
+            template<std::meta::info attribute_refl, bool checked>
+            consteval static std::meta::info inject_attribute_type()
+            {
+                using attribute_type_t = typename [:std::meta::type_of(attribute_refl):];
+                return ^^set_raw<attribute_refl, checked, attribute_type_t>;
+            }
+
             template<std::meta::info attribute_refl, bool checked, class A>
-            zb_zcl_status_t set_raw(A &&arg)
+            zb_zcl_status_t set_raw(const A &arg)
             {
                 static constexpr auto user_cluster_ref = std::meta::parent_of(attribute_refl);
                 static constexpr auto attribute_a = get_attribute_annotation(attribute_refl);
@@ -328,9 +335,9 @@ namespace zbm
             }
 
             template<std::meta::info attribute_refl, class A>
-            zb_zcl_status_t set(A &&arg) { return set_raw<attribute_refl, false, A>(std::forward<A>(arg)); }
+            zb_zcl_status_t set(A &&arg) { return [:inject_attribute_type<attribute_refl, false>():](std::forward<A>(arg)); }
             template<std::meta::info attribute_refl, class A>
-            zb_zcl_status_t set_checked(A &&arg) { return set_raw<attribute_refl, true, A>(std::forward<A>(arg)); }
+            zb_zcl_status_t set_checked(A &&arg) { return [:inject_attribute_type<attribute_refl, true>():](std::forward<A>(arg)); }
 
             /**********************************************************************/
             /* Sending commands                                                   */
