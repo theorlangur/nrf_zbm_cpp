@@ -330,8 +330,9 @@ namespace zbm
                 static constexpr auto zbm_cluster_refl = *zbm_cluster_refl_opt;
                 using zbm_cluster_t = typename [:zbm_cluster_refl:];
 
+                constexpr auto ca = cluster_rt_a(zbm_cluster_t::g_ClusterA);
                 //ZBOSS API call
-                return zb_zcl_set_attr_val(epa.ep, zbm_cluster_t::g_ClusterA.id, (zb_uint8_t)zbm_cluster_t::g_ClusterA.role, attribute_a.id, (zb_uint8_t*)&arg, checked);
+                return zb_zcl_set_attr_val(epa.ep, ca.id, (zb_uint8_t)ca.role, attribute_a.id, (zb_uint8_t*)&arg, checked);
             }
 
             template<std::meta::info attribute_refl, class A>
@@ -424,7 +425,7 @@ namespace zbm
             private:
 
             template<send_cmd_config_t cfg, class... Args>
-            std::optional<cmd_id_t> send_cmd_impl(cmd_out_a cmd_a, cluster_a clust_a, zb_addr_u addr, addr_mode_t mode, uint8_t dst_ep, Args&&...args)
+            std::optional<cmd_id_t> send_cmd_impl(cmd_out_a cmd_a, cluster_rt_a clust_a, zb_addr_u addr, addr_mode_t mode, uint8_t dst_ep, Args&&...args)
             {
                 zb_bufid_t b = g_PreAllocBufs.allocate();
                 if (b == ZB_BUF_INVALID)

@@ -16,44 +16,36 @@ namespace zbm
         return i.pre_init || cluster_desc_t::template has_any_cmd_in_initialized<ep_mem_decl>() || (cluster_desc_t::attributes_want_check() > 0);
     }
 
-    struct additional_cluster_handlers_base_t
-    {
-        uint8_t ep=0xff;
-    };
-
     constexpr static  uint8_t kNeedsValueChecker = 0x01;
     constexpr static  uint8_t kNeedsCmdHandler = 0x02;
-    constexpr static  uint8_t kNeedsBoth = kNeedsValueChecker | kNeedsCmdHandler;
+    constexpr static  uint8_t kNeedsWriteHook = 0x04;
+    constexpr static  uint8_t kNeedsAll = kNeedsValueChecker | kNeedsCmdHandler | kNeedsWriteHook;
 
     template<uint8_t kNeeds>
-    struct additional_cluster_handlers_t
+    struct additional_cluster_handlers_factory_t
     {
-        static_assert((kNeeds & kNeedsBoth) && !(kNeeds & ~kNeedsBoth), "Invalid configuration of the additional cluster handlers");
-    };
-
-    template<>
-    struct additional_cluster_handlers_t<kNeedsBoth>: additional_cluster_handlers_base_t
-    {
-        zb_zcl_cluster_check_value_t checker;
-        zb_zcl_cluster_handler_t cmd_handler;
-    };
-
-    template<>
-    struct additional_cluster_handlers_t<kNeedsValueChecker>: additional_cluster_handlers_base_t
-    {
-        zb_zcl_cluster_check_value_t checker;
-    };
-
-    template<>
-    struct additional_cluster_handlers_t<kNeedsCmdHandler>: additional_cluster_handlers_base_t
-    {
-        zb_zcl_cluster_handler_t cmd_handler;
+        struct additional_cluster_handlers_base_t;
+        consteval{
+            static_assert(!(kNeeds & ~kNeedsAll), "Invalid configuration of the additional cluster handlers");
+            std::vector<std::meta::info> members;
+            if (kNeeds & kNeedsValueChecker)
+                members.push_back(std::meta::data_member_spec(^^zb_zcl_cluster_check_value_t, {.name = "checker"}));
+            if (kNeeds & kNeedsCmdHandler)
+                members.push_back(std::meta::data_member_spec(^^zb_zcl_cluster_handler_t, {.name = "cmd_handler"}));
+            if (kNeeds & kNeedsWriteHook)
+                members.push_back(std::meta::data_member_spec(^^zb_zcl_cluster_write_attr_hook_t, {.name = "write_hook"}));
+            std::meta::define_aggregate(^^additional_cluster_handlers_base_t, members);
+        };
+        struct additional_cluster_handlers_t: additional_cluster_handlers_base_t
+        {
+            uint8_t ep=0xff;
+        };
     };
 
     template<uint16_t clusterId, uint8_t kNeeds, size_t kMaxEntries>
     struct reserved_array_additional_cluster_handlers_t
     {
-        using storage_t = additional_cluster_handlers_t<kNeeds>;
+        using storage_t = typename additional_cluster_handlers_factory_t<kNeeds>::additional_cluster_handlers_t;
         storage_t slots[kMaxEntries] = {};
 
         storage_t* add()
@@ -173,7 +165,10 @@ namespace zbm
 
         consteval static uint8_t get_handling_needs()
         {
-            return (cmd_info_t::N_cmd_in > 0) * kNeedsCmdHandler + (attributes_want_check() > 0) * kNeedsValueChecker;
+            return (cmd_info_t::N_cmd_in > 0) * kNeedsCmdHandler 
+                + (attributes_want_check() > 0) * kNeedsValueChecker
+                + (g_ClusterA.write_attr_hook_meta != std::meta::info{}) * kNeedsWriteHook
+                ;
         }
 
         consteval static bool has_attribute(std::meta::info user_attr_mem)
@@ -381,7 +376,7 @@ namespace zbm
     inline zb_bool_t on_cluster_cmd_handling(zb_uint8_t param)
     {
         using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_ref)):];
-        constexpr auto i = cluster_desc_t::g_ClusterA;
+        constexpr cluster_rt_a i = cluster_desc_t::g_ClusterA;
 
         if ( ZB_ZCL_GENERAL_GET_CMD_LISTS_PARAM == param )
         {
@@ -499,6 +494,16 @@ namespace zbm
 
         if constexpr (attributes_want_check > 0)
             check_val = &on_cluster_check_value<cluster_r, ep, addHandlingDepth>;
+
+        if constexpr (cluster_desc_t::g_ClusterA.write_attr_hook_meta != std::meta::info{})
+        {
+            constexpr std::meta::info write_hook_impl = std::meta::substitute(cluster_desc_t::g_ClusterA.write_attr_hook_meta, {
+                    std::meta::reflect_constant(cluster_r)
+                    ,std::meta::reflect_constant(ep)
+                    ,std::meta::reflect_constant(addHandlingDepth)
+                });
+            write_hook = std::meta::extract<zb_zcl_cluster_write_attr_hook_t>(write_hook_impl);
+        }
 
         if (check_val || write_hook || cmd_handler)
         {

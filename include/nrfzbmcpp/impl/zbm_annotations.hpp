@@ -66,12 +66,24 @@ namespace zbm
         role_t        role = role_t::Server;
         zb_uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID;
         void (*pre_init)() = nullptr;
+        std::meta::info write_attr_hook_meta{};
 
-        constexpr bool operator==(cluster_a const&) const = default;
-        constexpr bool operator<(cluster_a const& rhs) const { return role < rhs.role; }
-        constexpr bool operator<=(cluster_a const& rhs) const { return role <= rhs.role; }
-        constexpr bool operator>(cluster_a const& rhs) const { return role > rhs.role; }
-        constexpr bool operator>=(cluster_a const& rhs) const { return role >= rhs.role; }
+        consteval bool operator==(cluster_a const&) const = default;
+        consteval bool operator<(cluster_a const& rhs) const { return role < rhs.role; }
+        consteval bool operator<=(cluster_a const& rhs) const { return role <= rhs.role; }
+        consteval bool operator>(cluster_a const& rhs) const { return role > rhs.role; }
+        consteval bool operator>=(cluster_a const& rhs) const { return role >= rhs.role; }
+    };
+
+    //version of cluster_a available at runtime
+    //cluster_a cannot be directly because of write_attr_hook_meta
+    struct cluster_rt_a
+    {
+        consteval cluster_rt_a(cluster_a a):id(a.id), rev(a.rev), role(a.role), manuf_code(a.manuf_code){}
+        zb_uint16_t id;
+        zb_uint16_t rev;
+        role_t        role;
+        zb_uint16_t manuf_code;
     };
 
     struct ep_a
