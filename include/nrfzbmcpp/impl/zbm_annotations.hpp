@@ -225,6 +225,14 @@ namespace zbm
     {
         if (r_cluster == std::meta::info{})
             return std::nullopt;
+
+        cluster_overide_a over;
+        if (!std::meta::is_type(r_cluster))
+        {
+            auto override_annotation = std::meta::annotations_of_with_type(r_cluster, ^^cluster_overide_a);
+            if (override_annotation.size())
+                over = std::meta::extract<cluster_overide_a>(override_annotation[0]);
+        }
         std::meta::info cluster_type = std::meta::dealias(r_cluster);
         if (!std::meta::is_type(cluster_type))
             cluster_type = std::meta::type_of(r_cluster);
@@ -246,7 +254,10 @@ namespace zbm
         if (!annotations.empty())
         {
             auto a = annotations[0];
-            return std::meta::extract<cluster_a>(a);
+            cluster_a res = std::meta::extract<cluster_a>(a);
+            if (over.write_attr_hook_meta != std::meta::info{})
+                res.write_attr_hook_meta = over.write_attr_hook_meta;
+            return res;
         }
         return std::nullopt;
     }

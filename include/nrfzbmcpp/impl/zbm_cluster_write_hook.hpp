@@ -39,6 +39,21 @@ namespace zbm
             return issue_t::Ok;
         }
 
+        consteval std::meta::info find_hook_to_run(std::meta::info hook_handler, std::meta::info attribute_mem_refl)
+        {
+            auto ctx = std::meta::access_context::current();
+            comp_str_t<255> expected_hook_name;
+            expected_hook_name += "hook_";
+            expected_hook_name += std::meta::identifier_of(attribute_mem_refl);
+
+            for(auto m : std::meta::members_of(hook_handler, ctx))
+            {
+                if (std::meta::has_identifier(m) && (std::meta::identifier_of(m) == expected_hook_name.sv()))
+                    return m;
+            }
+            return {};
+        }
+
         struct hook_check_res_t
         {
             bool valid = true;

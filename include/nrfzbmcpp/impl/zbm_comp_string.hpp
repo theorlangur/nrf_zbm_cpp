@@ -15,6 +15,11 @@ namespace zbm
         constexpr const char* data() const { return d.data(); };
         constexpr size_t size() const { return len; };
 
+        constexpr std::string_view sv() const
+        {
+            return {data(), len};
+        }
+
         constexpr comp_str_t& operator=(const char *pStr)
         {
             len = 0;
