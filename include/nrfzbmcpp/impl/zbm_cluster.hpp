@@ -5,6 +5,7 @@
 #include "zbm_serialize.hpp"
 #include "zbm_device_const_init.hpp"
 #include "zbm_annotations.hpp"
+#include "zbm_cluster_write_hook.hpp"
 
 namespace zbm
 {
@@ -475,6 +476,45 @@ namespace zbm
         return RET_OK;
     }
 
+    template<std::meta::info cluster_ref, uint8_t ep, uint8_t addHandlingDepth>
+    inline void on_cluster_write_hook(zb_uint8_t endpoint, zb_uint16_t attr_id, zb_uint8_t *new_value, zb_uint16_t manuf_code)
+    {
+        using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_ref)):];
+        constexpr auto i = cluster_desc_t::g_ClusterA;
+        if (ep != endpoint)
+        {
+            if constexpr (addHandlingDepth > 0)
+            {
+                auto *pSlot = g_AdditionalClusterHandlers<i.id, cluster_desc_t::get_handling_needs(), addHandlingDepth>.find(endpoint);
+                if (!pSlot)
+                    return;
+                else
+                    return pSlot->write_hook(endpoint, attr_id, new_value, manuf_code);
+            }else
+            {
+                ZB_ASSERT(false);
+                return;
+            }
+        }
+
+        if constexpr (cluster_desc_t::g_ClusterA.write_attr_hook_meta != std::meta::info{})
+        {
+            if constexpr (std::meta::is_function(cluster_desc_t::g_ClusterA.write_attr_hook_meta))
+            {
+                constexpr std::meta::info write_hook_impl = std::meta::substitute(cluster_desc_t::g_ClusterA.write_attr_hook_meta, {
+                        std::meta::reflect_constant(cluster_ref)
+                        ,std::meta::reflect_constant(ep)
+                        ,std::meta::reflect_constant(addHandlingDepth)
+                    });
+                zb_zcl_cluster_write_attr_hook_t write_hook = std::meta::extract<zb_zcl_cluster_write_attr_hook_t>(write_hook_impl);
+                write_hook(endpoint, attr_id, new_value, manuf_code);
+            }else if constexpr (std::meta::is_class_type(cluster_desc_t::g_ClusterA.write_attr_hook_meta))
+            {
+                //find the fitting static hook_* member function
+            }
+        }
+    }
+
     template<std::meta::info cluster_r, std::meta::info ep_mem_refl, uint8_t addHandlingDepth>
     void generic_cluster_init()
     {
@@ -496,14 +536,7 @@ namespace zbm
             check_val = &on_cluster_check_value<cluster_r, ep, addHandlingDepth>;
 
         if constexpr (cluster_desc_t::g_ClusterA.write_attr_hook_meta != std::meta::info{})
-        {
-            constexpr std::meta::info write_hook_impl = std::meta::substitute(cluster_desc_t::g_ClusterA.write_attr_hook_meta, {
-                    std::meta::reflect_constant(cluster_r)
-                    ,std::meta::reflect_constant(ep)
-                    ,std::meta::reflect_constant(addHandlingDepth)
-                });
-            write_hook = std::meta::extract<zb_zcl_cluster_write_attr_hook_t>(write_hook_impl);
-        }
+            write_hook = on_cluster_write_hook<cluster_r, ep, addHandlingDepth>;
 
         if (check_val || write_hook || cmd_handler)
         {
@@ -516,12 +549,17 @@ namespace zbm
             {
                 if constexpr (addHandlingDepth > 0)
                 {
-                    auto *pSlot = g_AdditionalClusterHandlers<i.id, cluster_desc_t::get_handling_needs(), addHandlingDepth>.add();
+                    constexpr auto kNeeds = cluster_desc_t::get_handling_needs();
+                    auto *pSlot = g_AdditionalClusterHandlers<i.id, kNeeds, addHandlingDepth>.add();
                     if (pSlot)
                     {
                         pSlot->ep = ep;
-                        pSlot->checker = check_val;
-                        pSlot->cmd_handler = cmd_handler;
+                        if constexpr (kNeeds & kNeedsValueChecker)
+                            pSlot->checker = check_val;
+                        if constexpr (kNeeds & kNeedsCmdHandler)
+                            pSlot->cmd_handler = cmd_handler;
+                        if constexpr (kNeeds & kNeedsWriteHook)
+                            pSlot->write_hook = write_hook;
                     }
                     else if (g_GlobalErrorHandler)
                     {

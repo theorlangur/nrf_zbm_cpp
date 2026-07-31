@@ -10,6 +10,7 @@ extern "C" {
 #include <type_traits>
 #include <meta>
 #include <ranges>
+#include "zbm_comp_string.hpp"
 
 namespace zbm
 {

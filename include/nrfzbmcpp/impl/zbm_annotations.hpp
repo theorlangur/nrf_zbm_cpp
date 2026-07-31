@@ -86,6 +86,11 @@ namespace zbm
         zb_uint16_t manuf_code;
     };
 
+    struct cluster_overide_a
+    {
+        std::meta::info write_attr_hook_meta{};
+    };
+
     struct ep_a
     {
         zb_uint8_t ep;
