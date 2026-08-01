@@ -67,6 +67,7 @@ namespace zbm
         zb_uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID;
         void (*pre_init)() = nullptr;
         std::meta::info write_attr_hook_meta{};
+        bool unique = false;
 
         consteval bool operator==(cluster_a const&) const = default;
         consteval bool operator<(cluster_a const& rhs) const { return role < rhs.role; }

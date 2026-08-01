@@ -533,12 +533,33 @@ namespace zbm
         }
     }
 
+    struct unique_cluster_check_t
+    {
+        bool result = true;
+        static_assert_str_t message;
+    };
+
+    consteval unique_cluster_check_t check_unique_cluster(std::meta::info cluster_data_type_refl, cluster_a a, uint8_t addHandlingDepth)
+    {
+        unique_cluster_check_t res;
+        if (a.unique && addHandlingDepth)
+        {
+            res.result = false;
+            res.message = "cluster '";
+            res.message += std::meta::display_string_of(std::meta::dealias(cluster_data_type_refl));
+            res.message += "' is marked 'unique' but appears more than once";
+        }
+        return res;
+    }
+
     template<std::meta::info cluster_r, std::meta::info ep_mem_refl, uint8_t addHandlingDepth>
     void generic_cluster_init()
     {
         static constexpr uint8_t ep = (*try_get_ep_annotation(ep_mem_refl)).ep;
         using cluster_desc_t = [:std::meta::remove_cvref(std::meta::type_of(cluster_r)):];
         constexpr auto i = cluster_desc_t::g_ClusterA;
+        constexpr auto unique_check = check_unique_cluster(^^typename cluster_desc_t::cluster_data_type_t, i, addHandlingDepth);
+        static_assert(unique_check.result, unique_check.message);
         if constexpr (i.pre_init)
             i.pre_init();
 
