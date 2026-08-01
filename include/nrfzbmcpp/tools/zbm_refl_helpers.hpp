@@ -2,6 +2,9 @@
 #define ZB_META_REFL_HELPERS_HPP_
 
 #include <meta>
+#include <cstddef>
+#include <cstdint>
+#include <string>
 
 namespace zbm
 {
