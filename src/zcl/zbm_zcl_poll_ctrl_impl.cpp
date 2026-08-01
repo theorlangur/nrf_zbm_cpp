@@ -1,4 +1,4 @@
-#include <nrfzbmcpp/zcl/zbm_zcl_poll_ctrl_impl.hpp>
+#include <nrfzbmcpp/zcl/zbm_zcl_poll_ctrl.hpp>
 
 namespace zbm
 {
@@ -30,6 +30,10 @@ namespace zbm
 
 
             void handler::do_thing()
+            {
+            }
+
+            void handler::init()
             {
             }
         }

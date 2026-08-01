@@ -24,6 +24,7 @@ namespace zbm
             {
                 poll_ctrl_basic_new_t &cluster;
 
+                void init();
                 void do_thing();
             };
         }
