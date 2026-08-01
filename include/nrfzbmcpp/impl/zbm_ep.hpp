@@ -212,6 +212,11 @@ namespace zbm
         return std::define_static_array(std::meta::members_of(ep_fact_inst, std::meta::access_context::current()))[0];//struct ep_t;
     } 
 
+    template<class H>
+    concept cluster_handler_can_init = requires(H h){
+        { h.init() };
+    };
+
     template<std::meta::info ep_ref>
     struct cluster_handler_factory_t
     {
@@ -479,6 +484,11 @@ namespace zbm
             void init()
             {
                 g_PreAllocBufs.init();
+                template for(constexpr auto m : std::define_static_array(std::meta::nonstatic_data_members_of(^^handlers_t, std::meta::access_context::current())))
+                {
+                    if constexpr (cluster_handler_can_init<typename [:std::meta::type_of(m):]>)
+                        handlers.[:m:].init();
+                }
             }
 
             private:
