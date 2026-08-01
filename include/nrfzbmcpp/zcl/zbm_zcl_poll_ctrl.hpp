@@ -62,7 +62,7 @@ namespace zbm
 
 
         struct 
-            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .write_attr_hook_meta=^^poll_ctrl_impl::write_attribute_hook_handlers}]]
+            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .write_attr_hook_meta=^^poll_ctrl_impl::write_attribute_hook_handlers, .unique = true}]]
             poll_ctrl_basic_new_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_CHECKIN_INTERVAL_ID, .a = access_t::RW}]]
@@ -77,9 +77,20 @@ namespace zbm
             [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_FAST_POLL_TIMEOUT_ID, .a = access_t::RW}]]
             uint16_t fast_poll_timeout = 10_sec_to_qs;//10sec
 
-            //[[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_ADDR_DATA_ID, .a = access_t::Internal, .type=type_t::Null}]]
-            //zb_zcl_poll_control_srv_cfg_data_t srv_cfg = 
-            //{ ZB_ZCL_POLL_CTRL_INVALID_ADDR, ZB_ZCL_POLL_INVALID_EP, 0, 0 };
+            [[=cmd_out_a{{.id = ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_ID}}]]
+            [[no_unique_address]]cmd_out_t<void()> check_in;
+
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_RESPONSE_ID}]]
+            cmd_handling_result_t(*on_check_in_response)(bool start_fast_poll, uint16_t fast_poll_timeout) = {};
+
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_FAST_POLL_STOP_ID}]]
+            cmd_handling_result_t(*on_fast_poll_stop)() = {};
+
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_SET_LONG_POLL_INTERVAL_ID}]]
+            cmd_handling_result_t(*on_set_long_poll)(uint32_t new_long_poll) = {};
+
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_SET_SHORT_POLL_INTERVAL_ID}]]
+            cmd_handling_result_t(*on_set_short_poll)(uint16_t new_short_poll) = {};
         };
 
         struct poll_ctrl_new_t: poll_ctrl_basic_new_t
@@ -92,6 +103,26 @@ namespace zbm
 
             [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_FAST_POLL_MAX_TIMEOUT_ID}]]
             uint16_t fast_poll_timeout_max = 0;
+        };
+
+        struct 
+            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .role=role_t::Client}]]
+            poll_ctrl_client_new_t
+        {
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_ID}]]
+            cmd_handling_result_t(*on_check_in)() = {};
+
+            [[=cmd_out_a{{.id = ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_RESPONSE_ID}}]]
+            [[no_unique_address]]cmd_out_t<void(bool start_fast_poll, uint16_t fast_poll_timeout)> check_in_response;
+
+            [[=cmd_out_a{{.id = ZB_ZCL_CMD_POLL_CONTROL_FAST_POLL_STOP_ID}}]]
+            [[no_unique_address]]cmd_out_t<void()> fast_poll_stop;
+
+            [[=cmd_out_a{{.id = ZB_ZCL_CMD_POLL_CONTROL_SET_LONG_POLL_INTERVAL_ID}}]]
+            [[no_unique_address]]cmd_out_t<void(uint32_t new_long_poll)> set_long_poll;
+
+            [[=cmd_out_a{{.id = ZB_ZCL_CMD_POLL_CONTROL_SET_SHORT_POLL_INTERVAL_ID}}]]
+            [[no_unique_address]]cmd_out_t<void(uint16_t new_short_poll)> set_short_poll;
         };
 
         /**********************************************************************/
