@@ -27,6 +27,11 @@ namespace zbm
             void write_attribute_hook_handlers::hook_fast_poll_timeout(uint8_t ep, uint16_t new_val)
             {
             }
+
+
+            void handler::do_thing()
+            {
+            }
         }
     }
 }

@@ -212,6 +212,39 @@ namespace zbm
         return std::define_static_array(std::meta::members_of(ep_fact_inst, std::meta::access_context::current()))[0];//struct ep_t;
     } 
 
+    template<std::meta::info ep_ref>
+    struct cluster_handler_factory_t
+    {
+        static constexpr auto cluster_list = define_static_array(extract_clusters_from_ep(ep_ref) 
+                                                    | std::views::filter([](const auto &c){ return c.annotation.handler != std::meta::info{}; })
+                                            );
+        static constexpr std::array<std::meta::info, cluster_list.size()> cluster_mems_list = []() consteval{
+            std::array<std::meta::info, cluster_list.size()> res;
+            size_t i = 0;
+            for(auto c : cluster_list | std::views::transform([](const auto &c){ return c.cluster; }))
+                res[i] = c;
+            return res;
+        }();
+        static constexpr auto handler_list = define_static_array(cluster_list | std::views::transform([](const auto &c){ return c.annotation.handler; }));
+
+        struct handlers_t;
+        consteval{
+            std::string prefix = "handler_";
+            std::vector<std::meta::info> mems;
+            size_t i = 0;
+            template for(constexpr auto ci : cluster_list)
+            {
+                mems.push_back(std::meta::data_member_spec(
+                                handler_list[i], 
+                                std::meta::data_member_options{.name = refl::name_with_hex<4>(prefix, ci.annotation.id)}
+                            )
+                        );
+                ++i;
+            }
+            std::meta::define_aggregate(^^handlers_t, mems);
+        };
+    };
+
 
     template<std::meta::info ep_mem_decl, std::meta::info ep_ref, is_cluster_global_info_list_c auto global_cluster_info> requires (!std::meta::annotations_of_with_type(ep_mem_decl, ^^zbm::ep_a).empty())
     struct ep_create_t
@@ -417,6 +450,32 @@ namespace zbm
                 return [:send_cmd_impl_refl:](cmd_a, cluster_a, {.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, std::forward<Args>(args)...);
             }
 
+            template<class ClusterType>
+            constexpr auto& handler() const
+            {
+                constexpr auto ca_opt = get_cluster_annotation(^^ClusterType);
+                constexpr static_assert_str_t cluster_error_msg = []() consteval{
+                    static_assert_str_t res;
+                    res = "'";
+                    res += std::meta::display_string_of(std::meta::dealias(^^ClusterType));
+                    res += "' is not a valid cluster";
+                    return res;
+                }();
+                static_assert(ca_opt, cluster_error_msg);
+                constexpr auto ca = *ca_opt;
+                constexpr auto prefix = "handler_";
+                constexpr auto mem = refl::find_member_by_name(^^handlers_t, refl::name_with_hex<4>(prefix, ca.id));
+                constexpr static_assert_str_t error_msg = []() consteval{
+                    static_assert_str_t res;
+                    res = "There is no special handler for cluster '";
+                    res += std::meta::display_string_of(std::meta::dealias(^^ClusterType));
+                    res += "'";
+                    return res;
+                }();
+                static_assert(mem != std::meta::info{}, error_msg);
+                return handlers.[:mem:];
+            }
+
             void init()
             {
                 g_PreAllocBufs.init();
@@ -478,6 +537,11 @@ namespace zbm
         constinit static inline ep_front_t value{
             {.ep_data{epa, cluster_list, meta_ctr_param_t<^^clusters>{}, meta_ctr_add_handler_param_t<global_cluster_info>{}}}
         };
+        using handlers_factory_t = cluster_handler_factory_t<ep_ref>;
+        using handlers_t = typename handlers_factory_t::handlers_t;
+        constinit static inline handlers_t handlers = []<size_t...I>(std::index_sequence<I...>) constexpr{
+            return handlers_t{[:ep_ref:].[:handlers_factory_t::cluster_mems_list[I]:]...};
+        }(std::make_index_sequence<handlers_factory_t::cluster_mems_list.size()>());
     };
 }
 

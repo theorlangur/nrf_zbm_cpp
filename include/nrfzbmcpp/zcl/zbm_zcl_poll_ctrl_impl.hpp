@@ -7,6 +7,7 @@ namespace zbm
 {
     namespace zcl
     {
+        struct poll_ctrl_basic_new_t;
         namespace poll_ctrl_impl{
             struct write_attribute_hook_handlers
             {
@@ -18,6 +19,13 @@ namespace zbm
             //void poll_control_write_attr_hook_server(zb_uint8_t endpoint, zb_uint16_t attr_id, zb_uint8_t *new_value, zb_uint16_t manuf_code)
             //{
             //}
+
+            struct handler
+            {
+                poll_ctrl_basic_new_t &cluster;
+
+                void do_thing();
+            };
         }
     }
 }

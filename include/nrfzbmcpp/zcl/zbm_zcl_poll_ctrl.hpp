@@ -62,7 +62,7 @@ namespace zbm
 
 
         struct 
-            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .write_attr_hook_meta=^^poll_ctrl_impl::write_attribute_hook_handlers, .unique = true}]]
+            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .write_attr_hook_meta=^^poll_ctrl_impl::write_attribute_hook_handlers, .handler=^^poll_ctrl_impl::handler, .unique = true}]]
             poll_ctrl_basic_new_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_CHECKIN_INTERVAL_ID, .a = access_t::RW}]]

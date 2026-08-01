@@ -67,7 +67,8 @@ namespace zbm
         zb_uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID;
         void (*pre_init)() = nullptr;
         std::meta::info write_attr_hook_meta{};
-        bool unique = false;
+        std::meta::info handler{};//a type that can be constructed with a reference to a cluster type
+        bool unique = false;//if true - cluster may appear only once across all endpoints
 
         consteval bool operator==(cluster_a const&) const = default;
         consteval bool operator<(cluster_a const& rhs) const { return role < rhs.role; }
