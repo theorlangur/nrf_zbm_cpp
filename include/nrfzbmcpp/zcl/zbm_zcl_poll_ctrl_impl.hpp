@@ -24,8 +24,15 @@ namespace zbm
             {
                 poll_ctrl_basic_new_t &cluster;
 
-                void init();
-                void do_thing();
+                void init(uint8_t ep);
+
+                void start();
+                void stop();
+            private:
+                static void send_check_in(uint8_t buf);
+                static void on_bind_check(uint8_t param);
+                static void on_check_in_sent(uint8_t param);
+                static void on_no_response(uint8_t param);
             };
         }
     }
