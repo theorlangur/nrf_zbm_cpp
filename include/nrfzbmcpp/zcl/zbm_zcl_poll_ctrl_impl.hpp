@@ -23,16 +23,21 @@ namespace zbm
             struct handler
             {
                 poll_ctrl_basic_new_t &cluster;
+                uint8_t cmdBuf = 0;
+                uint8_t ep = 0;
 
                 void init(uint8_t ep);
 
                 void start();
                 void stop();
             private:
-                static void send_check_in(uint8_t buf);
-                static void on_bind_check(uint8_t param);
-                static void on_check_in_sent(uint8_t param);
-                static void on_no_response(uint8_t param);
+                void send_check_in(uint8_t buf);
+                void on_bind_check(uint8_t param);
+                void on_check_in_sent(uint8_t param);
+                void on_no_response(uint8_t param);
+
+                template<void (handler::*)(uint8_t)>
+                friend void callback(uint8_t);
             };
         }
     }
