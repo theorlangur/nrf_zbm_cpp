@@ -81,16 +81,16 @@ namespace zbm
             [[no_unique_address]]cmd_out_t<void()> check_in;
 
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_RESPONSE_ID}]]
-            cmd_handling_result_t(*on_check_in_response)(bool start_fast_poll, uint16_t fast_poll_timeout) = {};
+            cmd_handling_result_t(*on_check_in_response)(bool start_fast_poll, uint16_t fast_poll_timeout) = &poll_ctrl_impl::handler::on_check_in_response;
 
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_FAST_POLL_STOP_ID}]]
-            cmd_handling_result_t(*on_fast_poll_stop)() = {};
+            cmd_handling_result_t(*on_fast_poll_stop)() = &poll_ctrl_impl::handler::on_fast_poll_stop;
 
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_SET_LONG_POLL_INTERVAL_ID}]]
-            cmd_handling_result_t(*on_set_long_poll)(uint32_t new_long_poll) = {};
+            cmd_handling_result_t(*on_set_long_poll)(uint32_t new_long_poll) = &poll_ctrl_impl::handler::on_set_long_poll;
 
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_SET_SHORT_POLL_INTERVAL_ID}]]
-            cmd_handling_result_t(*on_set_short_poll)(uint16_t new_short_poll) = {};
+            cmd_handling_result_t(*on_set_short_poll)(uint16_t new_short_poll) = &poll_ctrl_impl::handler::on_set_short_poll;
         };
 
         struct poll_ctrl_new_t: poll_ctrl_basic_new_t

@@ -30,14 +30,23 @@ namespace zbm
 
                 void start();
                 void stop();
+
             private:
                 void send_check_in(uint8_t buf);
                 void on_bind_check(uint8_t param);
                 void on_check_in_sent(uint8_t param);
                 void on_no_response(uint8_t param);
 
+
+                static cmd_handling_result_t on_check_in_response(bool start_fast_poll, uint16_t fast_poll_timeout);
+                static cmd_handling_result_t on_fast_poll_stop();
+                static cmd_handling_result_t on_set_long_poll(uint32_t new_long_poll);
+                static cmd_handling_result_t on_set_short_poll(uint16_t new_short_poll);
+
                 template<void (handler::*)(uint8_t)>
                 friend void callback(uint8_t);
+
+                friend struct zbm::zcl::poll_ctrl_basic_new_t;
             };
         }
     }

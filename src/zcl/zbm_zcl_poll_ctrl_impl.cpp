@@ -51,19 +51,19 @@ namespace zbm
 
             void handler::start()
             {
-                ZB_SCHEDULE_APP_ALARM(callback_to<&handler::send_check_in>, 0, ZB_QUARTERECONDS_TO_BEACON_INTERVAL(g_pHandler->cluster.check_in_interval));
+                //ZB_SCHEDULE_APP_ALARM(callback_to<&handler::send_check_in>, 0, ZB_QUARTERECONDS_TO_BEACON_INTERVAL(g_pHandler->cluster.check_in_interval));
+                send_check_in(0);
             }
 
             void handler::stop()
             {
-                //zb_uint8_t canceled_param = 0;
-                //ZB_SCHEDULE_APP_ALARM_CANCEL_AND_GET_BUF(
-                //        callback_to<&handler::send_check_in>, ZB_ALARM_ANY_PARAM, &canceled_param);
-                //if (canceled_param != 0)
-                //{
-                //    zb_buf_free(cmdBuf);
-                //    cmdBuf = 0;
-                //}
+                ZB_SCHEDULE_APP_ALARM_CANCEL(callback_to<&handler::on_no_response>, ZB_ALARM_ANY_PARAM);
+                ZB_SCHEDULE_APP_ALARM_CANCEL(callback_to<&handler::send_check_in>, ZB_ALARM_ANY_PARAM);
+                if (cmdBuf != 0)
+                {
+                    zb_buf_free(cmdBuf);
+                    cmdBuf = 0;
+                }
             }
 
             void handler::send_check_in(uint8_t buf)
@@ -122,6 +122,24 @@ namespace zbm
                     zb_zdo_pim_start_turbo_poll_packets(0);
                     ZB_SCHEDULE_APP_ALARM(callback_to<&handler::on_no_response>, ep, kCheckInNoResponseInterval);
                 }
+            }
+
+            cmd_handling_result_t handler::on_check_in_response(bool start_fast_poll, uint16_t fast_poll_timeout)
+            {
+                return {};
+            }
+
+            cmd_handling_result_t handler::on_fast_poll_stop()
+            {
+                return {};
+            }
+            cmd_handling_result_t handler::on_set_long_poll(uint32_t new_long_poll)
+            {
+                return {};
+            }
+            cmd_handling_result_t handler::on_set_short_poll(uint16_t new_short_poll)
+            {
+                return {};
             }
         }
     }
