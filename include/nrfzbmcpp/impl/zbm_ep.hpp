@@ -22,43 +22,6 @@ namespace zbm
     {
     } ZB_PACKED_STRUCT;
 
-
-    struct short_addr_t
-    {
-        using addr_tag = void;
-        uint16_t short_addr;
-        uint8_t ep;
-    };
-    struct long_addr_t
-    {
-        using addr_tag = void;
-        long_addr_t(zb_ieee_addr_t a, uint8_t e):
-            ep(e)
-        {
-            memcpy(long_addr, a, sizeof(zb_ieee_addr_t));
-        }
-        zb_ieee_addr_t long_addr;
-        uint8_t ep;
-    };
-    struct group_addr_t
-    {
-        using addr_tag = void;
-        uint16_t group;
-    };
-    struct bind_id_addr_t
-    {
-        using addr_tag = void;
-        uint8_t bind_table_id;
-    };
-
-    inline short_addr_t to_short(uint16_t _short, uint8_t ep) { return {_short, ep}; }
-    inline long_addr_t to_long(zb_ieee_addr_t addr, uint8_t ep) { return {addr, ep}; }
-    inline group_addr_t to_group(uint16_t group) { return {group}; }
-    inline bind_id_addr_t to_bind_id(uint8_t id) { return {id}; }
-
-    template<class C>
-    concept is_zb_addr_type_c = requires{ typename C::addr_tag; };
-
     template<std::meta::info local_clusters_r>
     struct meta_ctr_param_t{};
 
@@ -271,7 +234,6 @@ namespace zbm
             using cancel_func_t = void (*)(uint16_t argsPoolIdx);
             inline static cmd_id_t g_cmd_num = 0;
 
-            static constexpr size_t kMaxAllowedArgumentSize = 100;
             //static_assert(kCmdMaxArgsSize <= kMaxAllowedArgumentSize, "Too much data for command arguments");
 
             struct issued_cmd_t
@@ -505,19 +467,7 @@ namespace zbm
 
                 auto kTimeout = cfg.timeout_ms == kCmdTimeoutDefault ? cmd_a.timeout_ms : cfg.timeout_ms;
 
-                uint16_t manu_code = clust_a.manuf_code != ZB_ZCL_MANUF_CODE_INVALID ? clust_a.manuf_code : cmd_a.manuf_code;
-                frame_ctl_t f{.f{
-                    .cluster_specific = true, 
-                        .manufacture_specific = manu_code != ZB_ZCL_MANUF_CODE_INVALID
-                            , .direction = clust_a.role == role_t::Client ? frame_direction_t::ToServer : frame_direction_t::ToClient
-                            , .disable_default_response = false
-                }};
-                ZB_ZCL_GET_SEQ_NUM();
-                uint8_t* ptr = (uint8_t*)zb_zcl_start_command_header(b, f.u8, manu_code, cmd_a.id, nullptr);
-                uint8_t* init = ptr;
-                template for(constexpr size_t i : std::ranges::views::indices(sizeof...(Args)))
-                    ptr = *serialize_to(args...[i], ptr, kMaxAllowedArgumentSize - (ptr - init));
-                zb_ret_t ret = zb_zcl_finish_and_send_packet(b, ptr, &addr, (uint8_t)mode/*addr mode*/, dst_ep, epa.ep, ZB_AF_HA_PROFILE_ID, clust_a.id, on_send_cmd_cb);
+                zb_ret_t ret = send_cmd_raw<Args...>(b, on_send_cmd_cb, cmd_a, clust_a, addr, mode, dst_ep, epa.ep, std::forward<Args>(args)...);
                 if (RET_OK != ret)
                 {
                     g_PreAllocBufs.deallocate(b);
