@@ -1,8 +1,4 @@
 #include <nrfzbmcpp/zcl/zbm_zcl_poll_ctrl.hpp>
-extern "C" {
-//#include <zboss_api_addons.h>
-//#include <zb_zgp_default_match_info.h>
-}
 
 namespace zbm
 {
@@ -96,26 +92,7 @@ namespace zbm
 
                 if (check_binding_resp->exists)
                 {
-                    zb_uint16_t dst_addr = 0;
-                    zb_uint8_t dst_ep = 0;
-                    zb_uint8_t addr_mode = ZB_APS_ADDR_MODE_DST_ADDR_ENDP_NOT_PRESENT;
-
-                    {                                                                          
-                        zb_uint8_t* _ptr = (zb_uint8_t*)ZB_ZCL_START_PACKET(param);                         
-                        ZB_ZCL_CONSTRUCT_SPECIFIC_COMMAND_RES_FRAME_CONTROL(_ptr);               
-                        ZB_ZCL_CONSTRUCT_COMMAND_HEADER(_ptr, ZB_ZCL_GET_SEQ_NUM(),              
-                                ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_ID);                                
-                        ZB_ZCL_FINISH_PACKET((param), _ptr)                                    
-                            ZB_ZCL_SEND_COMMAND_SHORT(                                               
-                                    param, dst_addr, ZB_APS_ADDR_MODE_DST_ADDR_ENDP_NOT_PRESENT, 0, ep, ZB_AF_HA_PROFILE_ID,    
-                                    ZB_ZCL_CLUSTER_ID_POLL_CONTROL, callback_to<&handler::on_check_in_sent>);                                
-                    }
-                    //ZB_ZCL_POLL_CONTROL_SEND_CHECK_IN_REQ(
-                    //  param,
-                    //  dst_addr, addr_mode, dst_ep,
-                    //  ep, ZB_AF_HA_PROFILE_ID,
-                    //  callback_to<&handler::on_check_in_sent>);
-
+                    send_cmd_mem<^^poll_ctrl_basic_new_t::check_in>::to(param, callback_to<&handler::on_check_in_sent>, ep);
                     ZB_SCHEDULE_APP_ALARM(callback_to<&handler::on_no_response>, ep, kCheckInNoResponseInterval);
 
                     zb_zdo_pim_set_fast_poll_timeout(kCheckInNoResponseIntervalMS);
