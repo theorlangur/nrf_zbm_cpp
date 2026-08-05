@@ -23,7 +23,6 @@ namespace zbm
             struct handler
             {
                 poll_ctrl_basic_new_t &cluster;
-                uint8_t cmdBuf = 0;
                 uint8_t ep = 0;
 
                 void init(uint8_t ep);
@@ -36,6 +35,11 @@ namespace zbm
                 void on_bind_check(uint8_t param);
                 void on_check_in_sent(uint8_t param);
                 void on_no_response(uint8_t param);
+
+                cmd_handling_result_t on_check_in_response_cb(bool start_fast_poll, uint16_t fast_poll_timeout);
+                cmd_handling_result_t on_fast_poll_stop_cb();
+                cmd_handling_result_t on_set_long_poll_cb(uint32_t new_long_poll);
+                cmd_handling_result_t on_set_short_poll_cb(uint16_t new_short_poll);
 
 
                 static cmd_handling_result_t on_check_in_response(bool start_fast_poll, uint16_t fast_poll_timeout);
