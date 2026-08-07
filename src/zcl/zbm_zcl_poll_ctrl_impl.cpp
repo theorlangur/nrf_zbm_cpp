@@ -43,6 +43,35 @@ namespace zbm
             template<auto MemberMethod>
             constexpr zb_callback_t callback_to = callback<MemberMethod>;
 
+
+            template<auto CB>
+            concept bind_complete_handler_c = requires(uint8_t param, bool exists) { (g_pHandler->*CB)(param, exists); };
+
+            template<auto CB>
+            void generic_check_bind_handler(uint8_t param)
+            {
+                zb_aps_check_binding_resp_t *check_binding_resp = NULL;
+                check_binding_resp = ZB_BUF_GET_PARAM(param, zb_aps_check_binding_resp_t);
+                static_assert(bind_complete_handler_c<CB>, "Unsupported callback for the result of bind checking");
+                if constexpr (bind_complete_handler_c<CB>)
+                {
+                    (g_pHandler->*CB)(param, check_binding_resp->exists);
+                }
+            }
+
+            template<auto cb>
+            void check_bind(uint8_t buf)
+            {
+                zb_aps_check_binding_req_t *check_binding_req = nullptr;
+                check_binding_req = ZB_BUF_GET_PARAM(buf, zb_aps_check_binding_req_t);
+                ZB_BZERO(check_binding_req, sizeof(*check_binding_req));
+
+                check_binding_req->src_endpoint = ZB_ZCL_BROADCAST_ENDPOINT;
+                check_binding_req->cluster_id = ZB_ZCL_CLUSTER_ID_POLL_CONTROL;
+                check_binding_req->response_cb = generic_check_bind_handler<cb>;
+                zb_zdo_check_binding_request(buf);
+            }
+
             void handler::init(uint8_t _ep)
             {
                 g_pHandler = this;
@@ -75,22 +104,12 @@ namespace zbm
                 }
 
                 //It makes sense sending check-in requests only when there's someone interested in them (bound to our cluster)
-                zb_aps_check_binding_req_t *check_binding_req = nullptr;
-                check_binding_req = ZB_BUF_GET_PARAM(buf, zb_aps_check_binding_req_t);
-                ZB_BZERO(check_binding_req, sizeof(*check_binding_req));
-
-                check_binding_req->src_endpoint = ZB_ZCL_BROADCAST_ENDPOINT;
-                check_binding_req->cluster_id = ZB_ZCL_CLUSTER_ID_POLL_CONTROL;
-                check_binding_req->response_cb = callback_to<&handler::on_bind_check>;
-                zb_zdo_check_binding_request(buf);
+                check_bind<&handler::send_check_in_validated>(buf);
             }
 
-            void handler::on_bind_check(uint8_t param)
+            void handler::send_check_in_validated(uint8_t param, bool ok)
             {
-                zb_aps_check_binding_resp_t *check_binding_resp = NULL;
-                check_binding_resp = ZB_BUF_GET_PARAM(param, zb_aps_check_binding_resp_t);
-
-                if (check_binding_resp->exists)
+                if (ok)
                 {
                     send_cmd_mem<^^poll_ctrl_basic_new_t::check_in>::to(param, callback_to<&handler::on_check_in_sent>, ep);
                     ZB_SCHEDULE_APP_ALARM(callback_to<&handler::on_no_response>, ep, kCheckInNoResponseInterval);
@@ -122,6 +141,7 @@ namespace zbm
                     //zb_zdo_pim_start_turbo_poll_packets(0);
                     ZB_SCHEDULE_APP_ALARM(callback_to<&handler::on_no_response>, ep, kCheckInNoResponseInterval);
                 }
+                zb_buf_free(param);
             }
 
             cmd_handling_result_t handler::on_check_in_response(bool start_fast_poll, uint16_t fast_poll_timeout)

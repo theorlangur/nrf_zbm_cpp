@@ -15,11 +15,6 @@ namespace zbm
                 static void hook_fast_poll_timeout(uint8_t ep, uint16_t new_val);
             };
 
-            //template<std::meta::info cluster_ref, uint8_t ep, uint8_t addHandlingDepth>
-            //void poll_control_write_attr_hook_server(zb_uint8_t endpoint, zb_uint16_t attr_id, zb_uint8_t *new_value, zb_uint16_t manuf_code)
-            //{
-            //}
-
             struct handler
             {
                 poll_ctrl_basic_new_t &cluster;
@@ -32,7 +27,7 @@ namespace zbm
 
             private:
                 void send_check_in(uint8_t buf);
-                void on_bind_check(uint8_t param);
+                void send_check_in_validated(uint8_t param, bool ok);
                 void on_check_in_sent(uint8_t param);
                 void on_no_response(uint8_t param);
 
