@@ -151,6 +151,12 @@ namespace zbm
             static_assert(sizeof(T) == 0, "Unknown type");
         return type_t::Invalid;
     }
+
+    struct cmd_raw_t
+    {
+        zb_zcl_parsed_hdr_t *cmd_info;
+        uint8_t param;
+    };
 }
 
 #endif

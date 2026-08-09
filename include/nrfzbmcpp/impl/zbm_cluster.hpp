@@ -6,6 +6,7 @@
 #include "zbm_device_const_init.hpp"
 #include "zbm_annotations.hpp"
 #include "zbm_cluster_write_hook.hpp"
+#include "zbm_out_cmd.hpp"
 
 namespace zbm
 {
@@ -248,70 +249,6 @@ namespace zbm
         };
     };
 
-    struct cmd_to_arg_t
-    {
-        const uint8_t *pData;
-        size_t dataLeft;
-        bool error = false;
-        template<class A> requires ((alignof(A) == 1) && !serializable_c<A>)
-        const A& extract()
-        {
-            const A *p = (const A*)pData;
-            pData += sizeof(A);
-            if (dataLeft < sizeof(A))
-            {
-                error = true;
-                dataLeft = 0;
-            }
-            else
-                dataLeft -= sizeof(A);
-            return *p;
-        }
-
-        template<class A> requires ((alignof(A) > 1) && !serializable_c<A>)
-        A extract()
-        {
-            static_assert(sizeof(A) <= 4, "type_t is too big");
-            const A *p = (const A*)pData;
-            if (dataLeft < sizeof(A))
-            {
-                error = true;
-                dataLeft = 0;
-                return {};
-            }
-            else
-                dataLeft -= sizeof(A);
-            pData += sizeof(A);
-            A ret;
-            memcpy(&ret, p, sizeof(A));
-            return ret;
-        }
-
-        template<serializable_c A>
-        A extract()
-        {
-            A ret;
-            if (auto res = ret.serialize_from(pData, dataLeft); !res)
-            {
-                error = true;
-                dataLeft = 0;
-                return {};
-            }else
-            {
-                size_t sz = *res - pData;
-                dataLeft -= sz;
-                pData = *res;
-            }
-            return ret;
-        }
-    };
-
-    struct cmd_handling_result_t
-    {
-        zb_ret_t status = RET_OK;
-        bool processed = true;
-    };
-
     template<std::meta::info cmd_t_refl>
     consteval std::optional<std::meta::info> get_fitting_call_operator_overload()
     {
@@ -350,7 +287,7 @@ namespace zbm
     }
 
     template<std::meta::info cluster_data_ref, cmd_in_with_annotation ci>
-    cmd_handling_result_t call_cmd(zb_zcl_parsed_hdr_t *cmd_info, std::span<uint8_t> raw_data)
+    cmd_handling_result_t call_cmd(uint8_t param, zb_zcl_parsed_hdr_t *cmd_info, std::span<uint8_t> raw_data)
     {
         constexpr auto cmd_t_refl = std::meta::type_of(ci.cmd);//type of cmd how it's defined in the user data structure being reflected
         if constexpr (std::convertible_to<typename [:cmd_t_refl:], bool>)//can it be checked for validity?
@@ -358,19 +295,16 @@ namespace zbm
 
         constexpr cmd_handler_info_t handler_info = analyze_cmd_handler<cmd_t_refl>();
         static constexpr auto params = std::define_static_array(std::meta::parameters_of(handler_info.functionType));
+        static constexpr bool acceptsRawCmdInfo = !params.empty() && (params[0] == ^^cmd_raw_t);
 
-        return [&]<size_t... I>(std::index_sequence<I...>)//need to generate actual arguments
+        if constexpr (acceptsRawCmdInfo)
         {
-            cmd_to_arg_t args(raw_data.data(), raw_data.size(), false);
-            //additional layer of calling is needed to be able to check for error during extracting arguments in 'args'
-            return [&]<class... Args>(Args&&... extracted_args)->cmd_handling_result_t
-            {
-                if (args.error)
-                    return {RET_ILLEGAL_REQUEST, true};
-                else
-                    return ([:cluster_data_ref:].[:ci.cmd:])(std::forward<Args>(extracted_args)...);
-            }(args.extract<typename [:params[I]:]>()...);
-        }(std::make_index_sequence<params.size()>());
+            //case when 1st argument is cmd_raw_t
+            cmd_raw_t raw{cmd_info, param};
+            return call_handler_method<ci.cmd, handler_info.functionType>([:cluster_data_ref:], raw_data, raw);
+        }
+        else
+            return call_handler_method<ci.cmd, handler_info.functionType>([:cluster_data_ref:], raw_data);
     }
 
     template<std::meta::info cluster_ref, uint8_t ep, uint8_t addHandlingDepth>
@@ -413,7 +347,7 @@ namespace zbm
                 if (cmdInfo.annotation.id == cmd_info->cmd_id)
                 {
                     //call that command
-                    r = call_cmd<cluster_desc_t::cluster_data_ref_refl, cmdInfo>(cmd_info, std::span<uint8_t>{(uint8_t*)zb_buf_begin(param), zb_buf_len(param)});
+                    r = call_cmd<cluster_desc_t::cluster_data_ref_refl, cmdInfo>(param, cmd_info, std::span<uint8_t>{(uint8_t*)zb_buf_begin(param), zb_buf_len(param)});
                     break;
                 }
             }

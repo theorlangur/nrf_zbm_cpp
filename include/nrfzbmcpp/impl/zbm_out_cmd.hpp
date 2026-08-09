@@ -141,6 +141,88 @@ namespace zbm
         static constexpr auto to_group = []() consteval { constexpr auto f = std::meta::substitute(^^send_cmd_raw_cluster_to_group, substitue_args); return &[:f:]; }();
         static constexpr auto to_bind_id = []() consteval { constexpr auto f = std::meta::substitute(^^send_cmd_raw_cluster_to_bind_id, substitue_args); return &[:f:]; }();
     };
+
+    struct cmd_to_arg_t
+    {
+        const uint8_t *pData;
+        size_t dataLeft;
+        bool error = false;
+        template<class A> requires ((alignof(A) == 1) && !serializable_c<A>)
+        const A& extract()
+        {
+            const A *p = (const A*)pData;
+            pData += sizeof(A);
+            if (dataLeft < sizeof(A))
+            {
+                error = true;
+                dataLeft = 0;
+            }
+            else
+                dataLeft -= sizeof(A);
+            return *p;
+        }
+
+        template<class A> requires ((alignof(A) > 1) && !serializable_c<A>)
+        A extract()
+        {
+            static_assert(sizeof(A) <= 4, "type_t is too big");
+            const A *p = (const A*)pData;
+            if (dataLeft < sizeof(A))
+            {
+                error = true;
+                dataLeft = 0;
+                return {};
+            }
+            else
+                dataLeft -= sizeof(A);
+            pData += sizeof(A);
+            A ret;
+            memcpy(&ret, p, sizeof(A));
+            return ret;
+        }
+
+        template<serializable_c A>
+        A extract()
+        {
+            A ret;
+            if (auto res = ret.serialize_from(pData, dataLeft); !res)
+            {
+                error = true;
+                dataLeft = 0;
+                return {};
+            }else
+            {
+                size_t sz = *res - pData;
+                dataLeft -= sz;
+                pData = *res;
+            }
+            return ret;
+        }
+    };
+
+    struct cmd_handling_result_t
+    {
+        zb_ret_t status = RET_OK;
+        bool processed = true;
+    };
+
+    template<std::meta::info method, std::meta::info call_type, class T, class... FixedArgs>
+    cmd_handling_result_t call_handler_method(T &o, std::span<uint8_t> raw_data, FixedArgs... fixedArgs)
+    {
+        static constexpr auto params = std::define_static_array(std::meta::parameters_of(call_type));
+        return [&]<size_t... I>(std::index_sequence<I...>)//need to generate actual arguments
+        {
+            cmd_to_arg_t args(raw_data.data(), raw_data.size(), false);
+            //additional layer of calling is needed to be able to check for error during extracting arguments in 'args'
+            return [&]<class... Args>(Args&&... extracted_args)->cmd_handling_result_t
+            {
+                if (args.error)
+                    return {RET_ILLEGAL_REQUEST, true};
+                else
+                    return (o.[:method:])(fixedArgs..., std::forward<Args>(extracted_args)...);
+            }(args.extract<typename [:params[I + sizeof...(FixedArgs)]:]>()...);
+        }(std::make_index_sequence<params.size() - sizeof...(FixedArgs)>());
+    }
 }
 
 #endif

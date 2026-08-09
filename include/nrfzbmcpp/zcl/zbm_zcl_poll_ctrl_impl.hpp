@@ -7,7 +7,7 @@ namespace zbm
 {
     namespace zcl
     {
-        struct poll_ctrl_basic_new_t;
+        struct poll_ctrl_basic_auto_t;
         namespace poll_ctrl_impl{
             struct write_attribute_hook_handlers
             {
@@ -17,7 +17,7 @@ namespace zbm
 
             struct handler
             {
-                poll_ctrl_basic_new_t &cluster;
+                poll_ctrl_basic_auto_t &cluster;
                 uint8_t ep = 0;
 
                 void init(uint8_t ep);
@@ -37,15 +37,25 @@ namespace zbm
                 cmd_handling_result_t on_set_short_poll_cb(uint16_t new_short_poll);
 
 
-                static cmd_handling_result_t on_check_in_response(bool start_fast_poll, uint16_t fast_poll_timeout);
-                static cmd_handling_result_t on_fast_poll_stop();
+                static cmd_handling_result_t on_check_in_response(cmd_raw_t raw);
+                static cmd_handling_result_t on_fast_poll_stop(cmd_raw_t raw);
                 static cmd_handling_result_t on_set_long_poll(uint32_t new_long_poll);
                 static cmd_handling_result_t on_set_short_poll(uint16_t new_short_poll);
+
+
+                template<std::meta::info method>
+                void on_cmd_handler_validated(uint8_t param, bool ok);
+
+                template<std::meta::info method>
+                static void check_bind_for_cmd_handler(uint8_t param);
 
                 template<void (handler::*)(uint8_t)>
                 friend void callback(uint8_t);
 
-                friend struct zbm::zcl::poll_ctrl_basic_new_t;
+                friend struct zbm::zcl::poll_ctrl_basic_auto_t;
+
+                template<std::meta::info method, std::meta::info call_type, class T, class... FixedArgs>
+                friend cmd_handling_result_t zbm::call_handler_method(T &o, std::span<uint8_t> raw_data, FixedArgs... fixedArgs);
             };
         }
     }

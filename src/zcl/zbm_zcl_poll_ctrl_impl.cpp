@@ -37,6 +37,13 @@ namespace zbm
             /* handler                                                            */
             /**********************************************************************/
 
+
+            consteval size_t get_param_total_size(std::meta::info m)
+            {
+                auto params = std::meta::parameters_of(std::meta::type_of(m));
+                return std::ranges::fold_left(params, 0, [](size_t s, std::meta::info param){return s + std::meta::size_of(param);});
+            }
+
             template<void (handler::*MemberMethod)(uint8_t)>
             void callback(uint8_t b) { return (g_pHandler->*MemberMethod)(b); }
 
@@ -111,7 +118,7 @@ namespace zbm
             {
                 if (ok)
                 {
-                    send_cmd_mem<^^poll_ctrl_basic_new_t::check_in>::to(param, callback_to<&handler::on_check_in_sent>, ep);
+                    send_cmd_mem<^^poll_ctrl_basic_auto_t::check_in>::to(param, callback_to<&handler::on_check_in_sent>, ep);
                     ZB_SCHEDULE_APP_ALARM(callback_to<&handler::on_no_response>, ep, kCheckInNoResponseInterval);
 
                     zb_zdo_pim_set_fast_poll_timeout(kCheckInNoResponseIntervalMS);
@@ -122,6 +129,44 @@ namespace zbm
                 //schedule next check-in either way
                 ZB_SCHEDULE_APP_ALARM(callback_to<&handler::send_check_in>, 0, ZB_QUARTERECONDS_TO_BEACON_INTERVAL(cluster.check_in_interval));
             }
+
+            template<std::meta::info method>
+            void handler::on_cmd_handler_validated(uint8_t param, bool ok)
+            {
+                constexpr size_t params_size = get_param_total_size(method);
+                uint8_t* pRawParams = (uint8_t*)zb_buf_begin(param);
+                zb_zcl_parsed_hdr_t *cmd_info = (zb_zcl_parsed_hdr_t *)(pRawParams + params_size);
+                std::span<uint8_t> raw_data{pRawParams, zb_buf_len(param)};
+                static_assert(alignof(zb_zcl_parsed_hdr_t) == 1, "Unexpected alignment requirement of zb_zcl_parsed_hdr_t");
+                if (!ok)
+                {
+                    //finish command with 'failed'
+                    ZB_ZCL_PROCESS_COMMAND_FINISH(param, cmd_info, ZB_ZCL_STATUS_ACTION_DENIED);
+                }else
+                {
+                    auto [status, processed] = call_handler_method<method, std::meta::type_of(method)>(*g_pHandler, raw_data);
+                    if(cmd_info->disable_default_response && status == RET_OK)
+                    {
+                        zb_buf_free(param);
+                    }else
+                    {
+                        ZB_ZCL_PROCESS_COMMAND_FINISH(param, cmd_info, status==RET_OK ? ZB_ZCL_STATUS_SUCCESS : ZB_ZCL_STATUS_INVALID_FIELD);
+                    }
+                }
+            }
+
+            template<std::meta::info method>
+            void handler::check_bind_for_cmd_handler(uint8_t param)
+            {
+                constexpr size_t params_size = get_param_total_size(method);
+                uint8_t* pRaw = (uint8_t*)zb_buf_begin(param);
+                pRaw += params_size;
+                zb_zcl_parsed_hdr_t *cmd_info = ZB_BUF_GET_PARAM(param, zb_zcl_parsed_hdr_t);
+                memcpy(pRaw, cmd_info, sizeof(zb_zcl_parsed_hdr_t));//saving zb_zcl_parsed_hdr_t right after expected parameter data
+                //re-using param for bind-check
+                check_bind<&handler::on_cmd_handler_validated<method>>(param);
+            }
+
 
             void handler::on_no_response(uint8_t param)
             {
@@ -144,9 +189,13 @@ namespace zbm
                 zb_buf_free(param);
             }
 
-            cmd_handling_result_t handler::on_check_in_response(bool start_fast_poll, uint16_t fast_poll_timeout)
+            cmd_handling_result_t handler::on_check_in_response(cmd_raw_t raw)
             {
-                if (g_pHandler) return g_pHandler->on_check_in_response_cb(start_fast_poll, fast_poll_timeout);
+                if (g_pHandler) 
+                {
+                    check_bind_for_cmd_handler<^^handler::on_check_in_response_cb>(raw.param);
+                    return {.status = RET_BUSY};
+                }
                 return {.status = RET_ERROR};
             }
 
@@ -161,9 +210,14 @@ namespace zbm
                 return {};
             }
 
-            cmd_handling_result_t handler::on_fast_poll_stop()
+            cmd_handling_result_t handler::on_fast_poll_stop(cmd_raw_t raw)
             {
-                if (g_pHandler) return g_pHandler->on_fast_poll_stop_cb();
+                if (g_pHandler) 
+                {
+                    check_bind_for_cmd_handler<^^handler::on_fast_poll_stop_cb>(raw.param);
+                    return {.status = RET_BUSY};
+                    //return g_pHandler->on_fast_poll_stop_cb();
+                }
                 return {.status = RET_ERROR};
             }
 

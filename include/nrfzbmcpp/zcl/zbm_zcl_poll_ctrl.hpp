@@ -27,7 +27,7 @@ namespace zbm
         static constexpr uint16_t kZB_ZCL_CLUSTER_ID_POLL_CTRL = 0x0020;
         struct 
             [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .pre_init=ZB_ZCL_CLUSTER_ID_POLL_CONTROL_SERVER_ROLE_INIT}]]
-            poll_ctrl_basic_t
+            poll_ctrl_basic_old_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_CHECKIN_INTERVAL_ID, .a = access_t::RW}]]
             uint32_t check_in_interval = 1_h_to_qs;//1h
@@ -46,7 +46,7 @@ namespace zbm
             { ZB_ZCL_POLL_CTRL_INVALID_ADDR, ZB_ZCL_POLL_INVALID_EP, 0, 0 };
         };
 
-        struct poll_ctrl_t: poll_ctrl_basic_t
+        struct poll_ctrl_old_t: poll_ctrl_basic_old_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_MIN_CHECKIN_INTERVAL_ID}]]
             uint32_t check_in_interval_min = 0;
@@ -58,12 +58,9 @@ namespace zbm
             uint16_t fast_poll_timeout_max = 0;
         };
 
-        //TODO: add a client counterpart
-
-
         struct 
-            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .write_attr_hook_meta=^^poll_ctrl_impl::write_attribute_hook_handlers, .handler=^^poll_ctrl_impl::handler, .unique = true}]]
-            poll_ctrl_basic_new_t
+            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL}]]
+            poll_ctrl_basic_t
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_CHECKIN_INTERVAL_ID, .a = access_t::RW}]]
             uint32_t check_in_interval = 1_h_to_qs;//1h
@@ -79,12 +76,32 @@ namespace zbm
 
             [[=cmd_out_a{{.id = ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_ID}}]]
             [[no_unique_address]]cmd_out_t<void()> check_in;
+        };
 
+        struct poll_ctrl_basic_manual_t: poll_ctrl_basic_t
+        {
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_RESPONSE_ID}]]
-            cmd_handling_result_t(*on_check_in_response)(bool start_fast_poll, uint16_t fast_poll_timeout) = &poll_ctrl_impl::handler::on_check_in_response;
+            cmd_handling_result_t(*on_check_in_response)(bool start_fast_poll, uint16_t fast_poll_timeout) = {};
 
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_FAST_POLL_STOP_ID}]]
-            cmd_handling_result_t(*on_fast_poll_stop)() = &poll_ctrl_impl::handler::on_fast_poll_stop;
+            cmd_handling_result_t(*on_fast_poll_stop)() = {};
+
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_SET_LONG_POLL_INTERVAL_ID}]]
+            cmd_handling_result_t(*on_set_long_poll)(uint32_t new_long_poll) = {};
+
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_SET_SHORT_POLL_INTERVAL_ID}]]
+            cmd_handling_result_t(*on_set_short_poll)(uint16_t new_short_poll) = {};
+        };
+
+        struct 
+            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .write_attr_hook_meta=^^poll_ctrl_impl::write_attribute_hook_handlers, .handler=^^poll_ctrl_impl::handler, .unique = true}]]
+            poll_ctrl_basic_auto_t: poll_ctrl_basic_t
+        {
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_RESPONSE_ID}]]
+            cmd_handling_result_t(*on_check_in_response)(cmd_raw_t raw) = &poll_ctrl_impl::handler::on_check_in_response;
+
+            [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_FAST_POLL_STOP_ID}]]
+            cmd_handling_result_t(*on_fast_poll_stop)(cmd_raw_t raw) = &poll_ctrl_impl::handler::on_fast_poll_stop;
 
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_SET_LONG_POLL_INTERVAL_ID}]]
             cmd_handling_result_t(*on_set_long_poll)(uint32_t new_long_poll) = &poll_ctrl_impl::handler::on_set_long_poll;
@@ -93,7 +110,8 @@ namespace zbm
             cmd_handling_result_t(*on_set_short_poll)(uint16_t new_short_poll) = &poll_ctrl_impl::handler::on_set_short_poll;
         };
 
-        struct poll_ctrl_new_t: poll_ctrl_basic_new_t
+        template<class Base>
+        struct poll_ctrl_tpl_t: Base
         {
             [[=attribute_a{.id = ZB_ZCL_ATTR_POLL_CONTROL_MIN_CHECKIN_INTERVAL_ID}]]
             uint32_t check_in_interval_min = 0;
@@ -105,9 +123,13 @@ namespace zbm
             uint16_t fast_poll_timeout_max = 0;
         };
 
+
+        using poll_ctrl_auto_t = poll_ctrl_tpl_t<poll_ctrl_basic_auto_t>;
+        using poll_ctrl_manual_t = poll_ctrl_tpl_t<poll_ctrl_basic_manual_t>;
+
         struct 
             [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .role=role_t::Client}]]
-            poll_ctrl_client_new_t
+            poll_ctrl_client_t
         {
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_ID}]]
             cmd_handling_result_t(*on_check_in)() = {};
