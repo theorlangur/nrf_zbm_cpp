@@ -9,22 +9,25 @@ namespace zbm
     {
         struct poll_ctrl_basic_auto_t;
         namespace poll_ctrl_impl{
-            struct write_attribute_hook_handlers
-            {
-                static void hook_check_in_interval(uint8_t ep, uint32_t new_val);
-                static void hook_fast_poll_timeout(uint8_t ep, uint16_t new_val);
-            };
-
             struct handler
             {
                 poll_ctrl_basic_auto_t &cluster;
+                uint8_t type_size;
                 uint8_t ep = 0;
+
+                template<class T> requires std::is_base_of_v<poll_ctrl_basic_auto_t, T>
+                constexpr handler(T &c): cluster(c), type_size(sizeof(T))
+                {
+                    static_assert(sizeof(T) <= 255, "Unexpectedly big size of the poll control cluster type");
+                }
 
                 void init(uint8_t ep);
 
                 void start();
                 void stop();
 
+                static void hook_check_in_interval(uint8_t ep, uint32_t new_val);
+                static void hook_fast_poll_timeout(uint8_t ep, uint16_t new_val);
             private:
                 void send_check_in(uint8_t buf);
                 void send_check_in_validated(uint8_t param, bool ok);

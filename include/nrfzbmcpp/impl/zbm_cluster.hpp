@@ -169,7 +169,7 @@ namespace zbm
         {
             return (cmd_info_t::N_cmd_in > 0) * kNeedsCmdHandler 
                 + (attributes_want_check() > 0) * kNeedsValueChecker
-                + (g_ClusterA.write_attr_hook_meta != std::meta::info{}) * kNeedsWriteHook
+                + (cluster_impl::check_handler_for_hook_type<g_ClusterA.handler>().hooks > 0) * kNeedsWriteHook
                 ;
         }
 
@@ -431,35 +431,23 @@ namespace zbm
             }
         }
 
-        if constexpr (cluster_desc_t::g_ClusterA.write_attr_hook_meta != std::meta::info{})
+        if constexpr (cluster_desc_t::g_ClusterA.handler != std::meta::info{} && (cluster_impl::check_handler_for_hook_type<cluster_desc_t::g_ClusterA.handler>().hooks > 0))
         {
-            if constexpr (std::meta::is_function(cluster_desc_t::g_ClusterA.write_attr_hook_meta))
+            //find the fitting static hook_* member function
+            template for (constexpr auto ai : cluster_desc_t::attributes_info)
             {
-                constexpr std::meta::info write_hook_impl = std::meta::substitute(cluster_desc_t::g_ClusterA.write_attr_hook_meta, {
-                        std::meta::reflect_constant(cluster_ref)
-                        ,std::meta::reflect_constant(ep)
-                        ,std::meta::reflect_constant(addHandlingDepth)
-                    });
-                zb_zcl_cluster_write_attr_hook_t write_hook = std::meta::extract<zb_zcl_cluster_write_attr_hook_t>(write_hook_impl);
-                write_hook(endpoint, attr_id, new_value, manuf_code);
-            }else if constexpr (std::meta::is_class_type(cluster_desc_t::g_ClusterA.write_attr_hook_meta))
-            {
-                //find the fitting static hook_* member function
-                template for (constexpr auto ai : cluster_desc_t::attributes_info)
+                //if constexpr (ai.annotation.a & access_t::Write)
                 {
-                    //if constexpr (ai.annotation.a & access_t::Write)
+                    if (ai.annotation.id == attr_id)
                     {
-                        if (ai.annotation.id == attr_id)
+                        //check if there's a hook for it
+                        constexpr auto f = cluster_impl::find_hook_to_run(cluster_desc_t::g_ClusterA.handler, ai.attribute);
+                        if constexpr (f != std::meta::info{})
                         {
-                            //check if there's a hook for it
-                            constexpr auto f = cluster_impl::find_hook_to_run(cluster_desc_t::g_ClusterA.write_attr_hook_meta, ai.attribute);
-                            if constexpr (f != std::meta::info{})
-                            {
-                                using A = typename [:std::meta::type_of(ai.attribute):];
-                                A ret;
-                                if (auto res = serialize_from(ret, new_value, serialize_limit<A>()); !res)
-                                    [:f:](ep, ret);
-                            }
+                            using A = typename [:std::meta::type_of(ai.attribute):];
+                            A ret;
+                            if (auto res = serialize_from(ret, new_value, serialize_limit<A>()); !res)
+                                [:f:](ep, ret);
                         }
                     }
                 }
@@ -508,11 +496,11 @@ namespace zbm
         if constexpr (attributes_want_check > 0)
             check_val = &on_cluster_check_value<cluster_r, ep, addHandlingDepth>;
 
-        if constexpr (cluster_desc_t::g_ClusterA.write_attr_hook_meta != std::meta::info{})
+        if constexpr (cluster_desc_t::g_ClusterA.handler != std::meta::info{})
         {
-            if constexpr (std::meta::is_class_type(cluster_desc_t::g_ClusterA.write_attr_hook_meta))
+            if constexpr (std::meta::is_class_type(cluster_desc_t::g_ClusterA.handler))
             {
-                constexpr auto hook_check = cluster_impl::check_hook_type<typename [:cluster_desc_t::g_ClusterA.write_attr_hook_meta:]>();
+                constexpr auto hook_check = cluster_impl::check_hook_type<typename [:cluster_desc_t::g_ClusterA.handler:]>();
                 static_assert(hook_check.valid, hook_check.message);
             }
             write_hook = on_cluster_write_hook<cluster_r, ep, addHandlingDepth>;

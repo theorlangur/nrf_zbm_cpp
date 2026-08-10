@@ -9,28 +9,25 @@ namespace zbm
             zb_time_t kCheckInNoResponseInterval = ZB_MILLISECONDS_TO_BEACON_INTERVAL(kCheckInNoResponseIntervalMS);
             constinit static handler *g_pHandler = nullptr;
 
-            void write_attribute_hook_handlers::hook_check_in_interval(uint8_t ep, uint32_t new_val)
+            void handler::hook_check_in_interval(uint8_t ep, uint32_t new_val)
             {
                 zb_time_t new_interval;
                 new_interval = ZB_QUARTERECONDS_TO_BEACON_INTERVAL(new_val);
-                zb_uint8_t canceled_param = zb_zcl_poll_control_stop();
+                g_pHandler->stop();
 
                 if (new_val != ZB_ZCL_POLL_CONTROL_CHECKIN_INTERVAL_NO_CHECK_IN_VALUE)
                 {
                     /* re-use buffer specified by canceled_param */
                     //zb_zcl_poll_control_start_internal(canceled_param, new_val);
-                    ZB_SCHEDULE_APP_CALLBACK(zb_zcl_poll_control_save_nvram, 0);
-                }
-                else
-                {
-                    /* free buffer - it is not re-used */
-                    if (canceled_param)
-                        zb_buf_free(canceled_param);
+                    //ZB_SCHEDULE_APP_CALLBACK(zb_zcl_poll_control_save_nvram, 0);
+                    g_pHandler->start();
+                    (void)zb_nvram_write_dataset(ZB_NVRAM_HA_POLL_CONTROL_DATA);
                 }
             }
 
-            void write_attribute_hook_handlers::hook_fast_poll_timeout(uint8_t ep, uint16_t new_val)
+            void handler::hook_fast_poll_timeout(uint8_t ep, uint16_t new_val)
             {
+                (void)zb_nvram_write_dataset(ZB_NVRAM_HA_POLL_CONTROL_DATA);
             }
 
             /**********************************************************************/
@@ -242,6 +239,7 @@ namespace zbm
                 zb_zdo_pim_set_long_poll_interval(ZB_QUARTERECONDS_TO_MSEC(new_long_poll));
                 //optionally save nvram
                 //ZB_SCHEDULE_CALLBACK(zb_zcl_poll_control_save_nvram, 0);
+                (void)zb_nvram_write_dataset(ZB_NVRAM_HA_POLL_CONTROL_DATA);
                 return {};
             }
 
@@ -258,6 +256,7 @@ namespace zbm
                 zb_zdo_pim_set_fast_poll_interval(ZB_QUARTERECONDS_TO_MSEC(new_short_poll));
                 //optionally save nvram
                 //ZB_SCHEDULE_CALLBACK(zb_zcl_poll_control_save_nvram, 0);
+                (void)zb_nvram_write_dataset(ZB_NVRAM_HA_POLL_CONTROL_DATA);
                 return {};
             }
         }

@@ -66,7 +66,6 @@ namespace zbm
         role_t        role = role_t::Server;
         zb_uint16_t manuf_code = ZB_ZCL_MANUF_CODE_INVALID;
         void (*pre_init)() = nullptr;
-        std::meta::info write_attr_hook_meta{};
         std::meta::info handler{};//a type that can be constructed with a reference to a cluster type
         bool unique = false;//if true - cluster may appear only once across all endpoints
 
@@ -90,7 +89,7 @@ namespace zbm
 
     struct cluster_overide_a
     {
-        std::meta::info write_attr_hook_meta{};
+        std::meta::info handler{};
     };
 
     struct ep_a
@@ -257,8 +256,8 @@ namespace zbm
         {
             auto a = annotations[0];
             cluster_a res = std::meta::extract<cluster_a>(a);
-            if (over.write_attr_hook_meta != std::meta::info{})
-                res.write_attr_hook_meta = over.write_attr_hook_meta;
+            if (over.handler != std::meta::info{})
+                res.handler = over.handler;
             return res;
         }
         return std::nullopt;

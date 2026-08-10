@@ -58,6 +58,7 @@ namespace zbm
         {
             bool valid = true;
             static_assert_str_t message;
+            int hooks = 0;
         };
 
         template<class T>
@@ -66,6 +67,13 @@ namespace zbm
             hook_check_res_t res;
             auto type_name = std::meta::display_string_of(^^T);
             auto ctx = std::meta::access_context::current();
+            if (!std::meta::is_class_type(^^T))
+            {
+                res.message += type_name;
+                res.message += " must be a struct/class type!";
+                res.valid = false;
+                return res;
+            }
             for(auto m : std::meta::members_of(^^T, ctx))
             {
                 if (is_hook_function(m))
@@ -104,10 +112,22 @@ namespace zbm
                                 res.message += std::meta::display_string_of(std::meta::parameters_of(func_type)[0]);
                                 break;
                         }
+                    }else
+                    {
+                        ++res.hooks;
                     }
                 }
             }
             return res;
+        }
+
+        template<std::meta::info handler>
+        consteval hook_check_res_t check_handler_for_hook_type()
+        {
+            if constexpr (handler != std::meta::info{})
+                return check_hook_type<typename [:handler:]>();
+            else
+                return {};
         }
 
     }

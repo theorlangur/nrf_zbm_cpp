@@ -94,7 +94,7 @@ namespace zbm
         };
 
         struct 
-            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .write_attr_hook_meta=^^poll_ctrl_impl::write_attribute_hook_handlers, .handler=^^poll_ctrl_impl::handler, .unique = true}]]
+            [[=cluster_a{.id = kZB_ZCL_CLUSTER_ID_POLL_CTRL, .handler=^^poll_ctrl_impl::handler, .unique = true}]]
             poll_ctrl_basic_auto_t: poll_ctrl_basic_t
         {
             [[=cmd_in_a{ZB_ZCL_CMD_POLL_CONTROL_CHECK_IN_RESPONSE_ID}]]
