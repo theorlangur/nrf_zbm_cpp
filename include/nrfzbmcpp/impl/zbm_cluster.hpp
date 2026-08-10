@@ -6,7 +6,7 @@
 #include "zbm_device_const_init.hpp"
 #include "zbm_annotations.hpp"
 #include "zbm_cluster_write_hook.hpp"
-#include "zbm_out_cmd.hpp"
+#include "zbm_cmd.hpp"
 
 namespace zbm
 {

@@ -6,7 +6,7 @@
 #include "zbm_buf.hpp"
 #include "zbm_annotations.hpp"
 #include "zbm_cluster.hpp"
-#include "zbm_out_cmd.hpp"
+#include "zbm_cmd.hpp"
 
 
 namespace zbm
