@@ -5,7 +5,7 @@
 #include "zbm_serialize.hpp"
 #include "zbm_device_const_init.hpp"
 #include "zbm_annotations.hpp"
-#include "zbm_cluster_write_hook.hpp"
+#include "zbm_cluster_impl.hpp"
 #include "zbm_cmd.hpp"
 
 namespace zbm
@@ -162,6 +162,7 @@ namespace zbm
             for(auto ai : attributes_info)
                 if ((ai.annotation.a & access_t::Write) && ai.annotation.validator)
                     ++count;
+            count += cluster_impl::check_handler_for_validator_type<g_ClusterA.handler>().validators;
             return count;
         }
 
@@ -397,6 +398,7 @@ namespace zbm
 
         template for (constexpr auto ai : cluster_desc_t::attributes_info)
         {
+            constexpr auto f = cluster_impl::find_validate_to_run(cluster_desc_t::g_ClusterA.handler, ai.attribute);
             if constexpr ((ai.annotation.a & access_t::Write) && ai.annotation.validator)
             {
                 if (ai.annotation.id == attr_id)
@@ -404,6 +406,13 @@ namespace zbm
                     //weird that I had to spell it out by declaring a local variable...
                     auto validator = ai.annotation.validator;
                     return validator(value);
+                }
+            }
+            else if constexpr (f != std::meta::info{})
+            {
+                if (ai.annotation.id == attr_id)
+                {
+                    return [:f:](value);
                 }
             }
         }

@@ -28,6 +28,9 @@ namespace zbm
 
                 static void hook_check_in_interval(uint8_t ep, uint32_t new_val);
                 static void hook_fast_poll_timeout(uint8_t ep, uint16_t new_val);
+
+                static  zb_ret_t validate_check_in_interval(zb_uint8_t *value);
+                static  zb_ret_t validate_fast_poll_timeout(zb_uint8_t *value);
             private:
                 void send_check_in(uint8_t buf);
                 void send_check_in_validated(uint8_t param, bool ok);

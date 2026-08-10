@@ -30,6 +30,36 @@ namespace zbm
                 (void)zb_nvram_write_dataset(ZB_NVRAM_HA_POLL_CONTROL_DATA);
             }
 
+            zb_ret_t handler::validate_check_in_interval(zb_uint8_t *value)
+            {
+                uint32_t v;
+                memcpy(&v, value, sizeof(v));
+                if (v > ZB_ZCL_POLL_CONTROL_CHECKIN_INTERVAL_MAX_VALUE)
+                    return RET_ERROR;
+                if (g_pHandler->type_size == sizeof(poll_ctrl_auto_t))
+                {
+                    poll_ctrl_auto_t *pFull = static_cast<poll_ctrl_auto_t *>(&g_pHandler->cluster);
+                    if (v < pFull->check_in_interval_min)
+                        return RET_ERROR;
+                }
+                return RET_OK;
+            }
+
+            zb_ret_t handler::validate_fast_poll_timeout(zb_uint8_t *value)
+            {
+                uint16_t v;
+                memcpy(&v, value, sizeof(v));
+                if (v < ZB_ZCL_POLL_CONTROL_FAST_POLL_TIMEOUT_MIN_VALUE)
+                    return RET_ERROR;
+                if (g_pHandler->type_size == sizeof(poll_ctrl_auto_t))
+                {
+                    poll_ctrl_auto_t *pFull = static_cast<poll_ctrl_auto_t *>(&g_pHandler->cluster);
+                    if (v > pFull->fast_poll_timeout_max)
+                        return RET_ERROR;
+                }
+                return RET_OK;
+            }
+
             /**********************************************************************/
             /* handler                                                            */
             /**********************************************************************/

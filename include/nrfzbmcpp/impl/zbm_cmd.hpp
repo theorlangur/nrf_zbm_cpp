@@ -1,5 +1,5 @@
-#ifndef ZB_META_OUT_CMD_HPP_
-#define ZB_META_OUT_CMD_HPP_
+#ifndef ZB_META_CMD_HPP_
+#define ZB_META_CMD_HPP_
 
 #include "lib_object_pool.hpp"
 #include "zbm_annotations.hpp"
