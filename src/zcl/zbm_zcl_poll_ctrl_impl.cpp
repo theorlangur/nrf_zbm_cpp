@@ -5,9 +5,30 @@ namespace zbm
     namespace zcl
     {
         namespace poll_ctrl_impl{
+
             zb_time_t kCheckInNoResponseIntervalMS = 7680;
             zb_time_t kCheckInNoResponseInterval = ZB_MILLISECONDS_TO_BEACON_INTERVAL(kCheckInNoResponseIntervalMS);
             constinit static handler *g_pHandler = nullptr;
+
+            consteval size_t get_param_total_size(std::meta::info m)
+            {
+                auto params = std::meta::parameters_of(std::meta::type_of(m));
+                return std::ranges::fold_left(params, 0, [](size_t s, std::meta::info param){return s + std::meta::size_of(param);});
+            }
+
+            template<void (handler::*MemberMethod)(uint8_t)>
+            void callback(uint8_t b) { return (g_pHandler->*MemberMethod)(b); }
+
+            template<auto MemberMethod>
+            constexpr zb_callback_t callback_to = callback<MemberMethod>;
+
+
+            template<auto CB>
+            concept bind_complete_handler_c = requires(uint8_t param, bool exists) { (g_pHandler->*CB)(param, exists); };
+
+            /**********************************************************************/
+            /* handler                                                            */
+            /**********************************************************************/
 
             void handler::hook_check_in_interval(uint8_t ep, uint32_t new_val)
             {
@@ -59,27 +80,6 @@ namespace zbm
                 }
                 return RET_OK;
             }
-
-            /**********************************************************************/
-            /* handler                                                            */
-            /**********************************************************************/
-
-
-            consteval size_t get_param_total_size(std::meta::info m)
-            {
-                auto params = std::meta::parameters_of(std::meta::type_of(m));
-                return std::ranges::fold_left(params, 0, [](size_t s, std::meta::info param){return s + std::meta::size_of(param);});
-            }
-
-            template<void (handler::*MemberMethod)(uint8_t)>
-            void callback(uint8_t b) { return (g_pHandler->*MemberMethod)(b); }
-
-            template<auto MemberMethod>
-            constexpr zb_callback_t callback_to = callback<MemberMethod>;
-
-
-            template<auto CB>
-            concept bind_complete_handler_c = requires(uint8_t param, bool exists) { (g_pHandler->*CB)(param, exists); };
 
             template<auto CB>
             void generic_check_bind_handler(uint8_t param)
