@@ -39,8 +39,6 @@ namespace zbm
                 if (new_val != ZB_ZCL_POLL_CONTROL_CHECKIN_INTERVAL_NO_CHECK_IN_VALUE)
                 {
                     /* re-use buffer specified by canceled_param */
-                    //zb_zcl_poll_control_start_internal(canceled_param, new_val);
-                    //ZB_SCHEDULE_APP_CALLBACK(zb_zcl_poll_control_save_nvram, 0);
                     g_pHandler->start();
                     (void)zb_nvram_write_dataset(ZB_NVRAM_HA_POLL_CONTROL_DATA);
                 }
@@ -114,7 +112,6 @@ namespace zbm
 
             void handler::start()
             {
-                //ZB_SCHEDULE_APP_ALARM(callback_to<&handler::send_check_in>, 0, ZB_QUARTERECONDS_TO_BEACON_INTERVAL(g_pHandler->cluster.check_in_interval));
                 send_check_in(0);
             }
 
@@ -250,9 +247,11 @@ namespace zbm
 
             cmd_handling_result_t handler::on_fast_poll_stop_cb()
             {
-                //zb_zdo_pim_stop_fast_poll_extended_req(param, fast_poll_stop_handler_send_default_response);
                 zb_zdo_pim_stop_fast_poll(0);
-                return {};
+                if (zb_zdo_pim_in_fast_poll())
+                    return {.status = RET_ERROR};
+                else
+                    return {};
             }
 
             cmd_handling_result_t handler::on_set_long_poll(uint32_t new_long_poll)
