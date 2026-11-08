@@ -5,18 +5,59 @@
 #include "zbm_zcl_power_config.hpp"
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/adc.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/regulator.h>
 
 namespace zbm
 {
     namespace zcl
     {
+        template<bool enabled>
         struct reg_raii_t
         {
-            reg_raii_t(const struct device *pD):pDev(pD){ if (pDev) regulator_enable(pDev); }
-            ~reg_raii_t() { if (pDev) regulator_disable(pDev); }
+            reg_raii_t(const struct device *pD):pDev(pD)
+            { 
+                if constexpr (enabled)
+                {
+                    if (pDev) regulator_enable(pDev); 
+                }
+            }
+            ~reg_raii_t() 
+            { 
+                if constexpr (enabled)
+                {
+                    if (pDev) regulator_disable(pDev); 
+                }
+            }
         private:
             const struct device *pDev;
+        };
+
+        template<bool enabled>
+        struct adc_raii_t
+        {
+            adc_raii_t(const struct adc_dt_spec *_adc_spec, const struct device *_gpio_port, int _pin):
+                adc_spec(_adc_spec), gpio_port(_gpio_port), pin(_pin)
+            {
+                if constexpr(enabled)
+                {
+                    if (gpio_port)
+                        adc_channel_setup_dt(adc_spec);
+                }
+            }
+
+            ~adc_raii_t()
+            {
+                if constexpr(enabled)
+                {
+                    if (gpio_port)
+                        gpio_pin_configure(gpio_port, pin, GPIO_DISCONNECTED);
+                }
+            }
+
+            const struct adc_dt_spec *adc_spec;
+            const struct device *gpio_port;
+            int pin;
         };
 
         struct battery_cfg_t
@@ -24,6 +65,8 @@ namespace zbm
             int battery_adc_channel = 0;
             int32_t maxBatteryVoltage = 1600;//mV
             int32_t minBatteryVoltage = 900;//mV
+            bool with_regulators = true;
+            bool disconnect_adc = false;
         };
 
         template<battery_cfg_t cfg, class EP>
@@ -37,10 +80,13 @@ namespace zbm
             EP &zb_ep;
             const struct adc_dt_spec *adc_channels;
             const struct device *regulator;
+            const struct device *gpio_port;
+            int gpio_pin;
 
             void update()
             {
-                reg_raii_t batteryRegulator(regulator);
+                reg_raii_t<cfg.with_regulators> batteryRegulator(regulator);
+                adc_raii_t<cfg.disconnect_adc> adcReg(&adc_channels[cfg.battery_adc_channel], gpio_port, gpio_pin);
                 uint16_t buf;
                 struct adc_sequence sequence = {
                     .buffer = &buf,
@@ -89,9 +135,9 @@ namespace zbm
         };
 
         template<battery_cfg_t cfg, class EP>
-        constexpr auto make_battery_measurements_block(EP &e, const struct adc_dt_spec *adc_channels, const struct device *reg = nullptr)
+        constexpr auto make_battery_measurements_block(EP &e, const struct adc_dt_spec *adc_channels, const struct device *reg = nullptr, const struct device *gpio_port = nullptr, int pin = 0)
         {
-            return battery_measurements_block_t<cfg, EP>{e, adc_channels, reg};
+            return battery_measurements_block_t<cfg, EP>{e, adc_channels, reg, gpio_port, pin};
         }
     }
 }
