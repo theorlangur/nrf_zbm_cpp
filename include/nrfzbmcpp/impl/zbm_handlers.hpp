@@ -330,15 +330,18 @@ namespace zbm
             return;
         }
         pDevParam->status = RET_OK;
-        static constexpr auto rng_opt = details::get_cb_id_range(std::initializer_list{handlers...});
-
-        if constexpr (rng_opt)
+        if constexpr (sizeof...(handlers))
         {
-            static constexpr auto rng = *rng_opt;
-            static constexpr auto cb_id_lookup = details::organize_cb_into_lookup<rng, std::array{handlers...}>();
-            if (pDevParam->device_cb_id >= rng.min && pDevParam->device_cb_id <= rng.max)
+            static constexpr auto rng_opt = details::get_cb_id_range(std::initializer_list{handlers...});
+
+            if constexpr (rng_opt)
             {
-                cb_id_lookup[pDevParam->device_cb_id](pDevParam);
+                static constexpr auto rng = *rng_opt;
+                static constexpr auto cb_id_lookup = details::organize_cb_into_lookup<rng, std::array{handlers...}>();
+                if (pDevParam->device_cb_id >= rng.min && pDevParam->device_cb_id <= rng.max)
+                {
+                    cb_id_lookup[pDevParam->device_cb_id](pDevParam);
+                }
             }
         }
 
