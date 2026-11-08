@@ -65,14 +65,14 @@ namespace zbm
 
 
     template<class... Args>
-    zb_ret_t send_cmd_raw(zb_bufid_t b, zb_callback_t cb, cmd_out_a cmd_a, cluster_rt_a clust_a, const zb_addr_u &addr, addr_mode_t mode, uint8_t dst_ep, uint8_t src_ep, Args&&...args)
+    zb_ret_t send_cmd_raw(zb_bufid_t b, zb_callback_t cb, cmd_out_a cmd_a, cluster_rt_a clust_a, const zb_addr_u &addr, addr_mode_t mode, uint8_t dst_ep, uint8_t src_ep, bool response, Args&&...args)
     {
         uint16_t manu_code = clust_a.manuf_code != ZB_ZCL_MANUF_CODE_INVALID ? clust_a.manuf_code : cmd_a.manuf_code;
         frame_ctl_t f{.f{
             .cluster_specific = true, 
                 .manufacture_specific = manu_code != ZB_ZCL_MANUF_CODE_INVALID
                     , .direction = clust_a.role == role_t::Client ? frame_direction_t::ToServer : frame_direction_t::ToClient
-                    , .disable_default_response = false
+                    , .disable_default_response = !response
         }};
         ZB_ZCL_GET_SEQ_NUM();
         uint8_t* ptr = (uint8_t*)zb_zcl_start_command_header(b, f.u8, manu_code, cmd_a.id, nullptr);
@@ -85,19 +85,19 @@ namespace zbm
     template<cmd_out_a cmd_a, cluster_rt_a clust_a, class... Args>
     zb_ret_t send_cmd_raw_cluster(zb_bufid_t b, zb_callback_t cb, const zb_addr_u &addr, addr_mode_t mode, uint8_t dst_ep, uint8_t src_ep, Args&&...args)
     {
-        return send_cmd_raw<Args...>(b, cb, cmd_a, clust_a, addr, mode, dst_ep, src_ep, std::forward<Args>(args)...);
+        return send_cmd_raw<Args...>(b, cb, cmd_a, clust_a, addr, mode, dst_ep, src_ep, true, std::forward<Args>(args)...);
     }
 
     template<cmd_out_a cmd_a, cluster_rt_a clust_a, class... Args>
     zb_ret_t send_cmd_raw_cluster_to(zb_bufid_t b, zb_callback_t cb, uint8_t src_ep, Args&&...args)
     {
-        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, {.addr_short = 0}, addr_mode_t::NoAddr_NoEP, 0, src_ep, std::forward<Args>(args)...);
+        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, {.addr_short = 0}, addr_mode_t::NoAddr_NoEP, 0, src_ep, true, std::forward<Args>(args)...);
     }
 
     template<cmd_out_a cmd_a, cluster_rt_a clust_a, class... Args>
     zb_ret_t send_cmd_raw_cluster_to_short(short_addr_t a, zb_bufid_t b, zb_callback_t cb, uint8_t src_ep, Args&&...args)
     {
-        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, {.addr_short = a.short_addr}, addr_mode_t::Dst16EP, a.ep, src_ep, std::forward<Args>(args)...);
+        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, {.addr_short = a.short_addr}, addr_mode_t::Dst16EP, a.ep, src_ep, true, std::forward<Args>(args)...);
     }
 
     template<cmd_out_a cmd_a, cluster_rt_a clust_a, class... Args>
@@ -105,19 +105,19 @@ namespace zbm
     {
         zb_addr_u addr;
         std::memcpy(addr.addr_long, a.long_addr, sizeof(a.long_addr));
-        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, addr, addr_mode_t::Dst64EP, a.ep, src_ep, std::forward<Args>(args)...);
+        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, addr, addr_mode_t::Dst64EP, a.ep, src_ep, true, std::forward<Args>(args)...);
     }
 
     template<cmd_out_a cmd_a, cluster_rt_a clust_a, class... Args>
     zb_ret_t send_cmd_raw_cluster_to_group(group_addr_t a, zb_bufid_t b, zb_callback_t cb, uint8_t src_ep, Args&&...args)
     {
-        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, {.addr_short = a.group}, addr_mode_t::Group_NoEP, 0, src_ep, std::forward<Args>(args)...);
+        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, {.addr_short = a.group}, addr_mode_t::Group_NoEP, 0, src_ep, true, std::forward<Args>(args)...);
     }
 
     template<cmd_out_a cmd_a, cluster_rt_a clust_a, class... Args>
     zb_ret_t send_cmd_raw_cluster_to_bind_id(bind_id_addr_t a, zb_bufid_t b, zb_callback_t cb, uint8_t src_ep, Args&&...args)
     {
-        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, {.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, src_ep, std::forward<Args>(args)...);
+        return send_cmd_raw_cluster<cmd_a, clust_a, Args...>(b, cb, {.addr_short = 0}, addr_mode_t::EPAsBindTableId, a.bind_table_id, src_ep, true, std::forward<Args>(args)...);
     }
 
     template<std::meta::info cmd_mem>

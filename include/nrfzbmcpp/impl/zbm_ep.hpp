@@ -348,6 +348,7 @@ namespace zbm
             {
                 cmd_send_status_cb_t cb = nullptr;
                 uint32_t timeout_ms = kCmdTimeoutDefault;
+                bool response = true;
             };
 
             //returns a reflection of the concrete instantiation of the send_cmd_impl with parameters from cmd_t
@@ -467,7 +468,7 @@ namespace zbm
 
                 auto kTimeout = cfg.timeout_ms == kCmdTimeoutDefault ? cmd_a.timeout_ms : cfg.timeout_ms;
 
-                zb_ret_t ret = send_cmd_raw<Args...>(b, on_send_cmd_cb, cmd_a, clust_a, addr, mode, dst_ep, epa.ep, std::forward<Args>(args)...);
+                zb_ret_t ret = send_cmd_raw<Args...>(b, on_send_cmd_cb, cmd_a, clust_a, addr, mode, dst_ep, epa.ep, cfg.response, std::forward<Args>(args)...);
                 if (RET_OK != ret)
                 {
                     g_PreAllocBufs.deallocate(b);
