@@ -121,7 +121,7 @@ namespace zbm
     union frame_ctl_t
     {
         struct{
-            uint8_t cluster_specific     : 1;
+            uint8_t cluster_specific     : 2;
             uint8_t manufacture_specific : 1;
             frame_direction_t direction     : 1;
             uint8_t disable_default_response : 1;
