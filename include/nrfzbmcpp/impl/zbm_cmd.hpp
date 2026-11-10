@@ -79,7 +79,9 @@ namespace zbm
         uint8_t* init = ptr;
         template for(constexpr size_t i : std::ranges::views::indices(sizeof...(Args)))
             ptr = *serialize_to(args...[i], ptr, kMaxAllowedArgumentSize - (ptr - init));
-        return zb_zcl_finish_and_send_packet(b, ptr, &addr, (uint8_t)mode/*addr mode*/, dst_ep, src_ep, ZB_AF_HA_PROFILE_ID, clust_a.id, cb);
+        //return zb_zcl_finish_and_send_packet(b, ptr, &addr, (uint8_t)mode/*addr mode*/, dst_ep, src_ep, ZB_AF_HA_PROFILE_ID, clust_a.id, cb);
+        return zb_zcl_finish_and_send_packet_new(b, ptr, &addr, (uint8_t)mode/*addr mode*/, dst_ep, src_ep, ZB_AF_HA_PROFILE_ID, clust_a.id, cb, ZB_FALSE, !response, 0);
+
     }
 
     template<cmd_out_a cmd_a, cluster_rt_a clust_a, class... Args>
